@@ -421,7 +421,67 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="hero" id="top">
+      <section className="target-section" id="top" aria-labelledby="target-title">
+        <div className="target-copy">
+          <p className="step-label">01 ／ 雙向換算</p>
+          <h2 id="target-title">投入本金 ⇄ 每月月領</h2>
+          <p>
+            兩邊都可以輸入。改總投入會算出每月月領；改每月月領則會反推總投入，並依目前 {assets.length} 檔的平均殖利率同步更新。
+          </p>
+
+          <label className="target-input">
+            <span>總投入金額</span>
+            <div>
+              <b>NT$</b>
+              <input
+                aria-label="雙向換算總投入金額"
+                inputMode="numeric"
+                value={number.format(budget)}
+                onChange={(event) => updateBudget(event.target.value)}
+              />
+              <em>本金</em>
+            </div>
+            <small className={linkDirection === "capital" ? "active-link-side" : ""}>
+              {linkDirection === "capital" ? "你最後輸入這一側" : "由月領金額反推"}
+            </small>
+          </label>
+        </div>
+
+        <div className="target-result">
+          <div className="link-direction-mark" aria-hidden="true">⇄</div>
+          <label className="monthly-income-input">
+            <span>每月月領金額</span>
+            <div>
+              <b>NT$</b>
+              <input
+                aria-label="雙向換算每月月領金額"
+                inputMode="numeric"
+                value={number.format(monthlyTarget)}
+                onChange={(event) => updateMonthlyIncome(event.target.value)}
+              />
+              <em>／ 月</em>
+            </div>
+            <small className={linkDirection === "income" ? "active-link-side" : ""}>
+              {linkDirection === "income" ? "你最後輸入這一側" : "由總投入金額換算"}
+            </small>
+          </label>
+          <div className="target-meta">
+            <div>
+              <span>預估年現金流</span>
+              <b>{money.format(monthlyTarget * 12)}</b>
+            </div>
+            <div>
+              <span>組合平均殖利率</span>
+              <b>{portfolioAverageYield.toFixed(2)}%</b>
+            </div>
+          </div>
+          <p className="link-calculation-note">
+            以預估年殖利率換算；實際配息金額與發放月份仍以各基金公告為準。
+          </p>
+        </div>
+      </section>
+
+      <section className="hero">
         <div className="hero-copy">
           <p className="eyebrow">TAIWAN ETF ALLOCATOR</p>
           <h1>
@@ -457,7 +517,7 @@ export default function Home() {
       <section className="planner-card" aria-labelledby="allocation-title">
         <div className="section-heading">
           <div>
-            <p className="step-label">01 ／ 預算配置</p>
+            <p className="step-label">02 ／ 預算配置</p>
             <h2 id="allocation-title">這筆錢，可以怎麼買？</h2>
           </div>
           <button
@@ -717,66 +777,6 @@ export default function Home() {
             {assetError && <p className="asset-error" role="alert">{assetError}</p>}
           </div>
         )}
-      </section>
-
-      <section className="target-section" aria-labelledby="target-title">
-        <div className="target-copy">
-          <p className="step-label">02 ／ 雙向換算</p>
-          <h2 id="target-title">投入本金 ⇄ 每月月領</h2>
-          <p>
-            兩邊都可以輸入。改總投入會算出每月月領；改每月月領則會反推總投入，並依目前 {assets.length} 檔的平均殖利率同步更新。
-          </p>
-
-          <label className="target-input">
-            <span>總投入金額</span>
-            <div>
-              <b>NT$</b>
-              <input
-                aria-label="雙向換算總投入金額"
-                inputMode="numeric"
-                value={number.format(budget)}
-                onChange={(event) => updateBudget(event.target.value)}
-              />
-              <em>本金</em>
-            </div>
-            <small className={linkDirection === "capital" ? "active-link-side" : ""}>
-              {linkDirection === "capital" ? "你最後輸入這一側" : "由月領金額反推"}
-            </small>
-          </label>
-        </div>
-
-        <div className="target-result">
-          <div className="link-direction-mark" aria-hidden="true">⇄</div>
-          <label className="monthly-income-input">
-            <span>每月月領金額</span>
-            <div>
-              <b>NT$</b>
-              <input
-                aria-label="雙向換算每月月領金額"
-                inputMode="numeric"
-                value={number.format(monthlyTarget)}
-                onChange={(event) => updateMonthlyIncome(event.target.value)}
-              />
-              <em>／ 月</em>
-            </div>
-            <small className={linkDirection === "income" ? "active-link-side" : ""}>
-              {linkDirection === "income" ? "你最後輸入這一側" : "由總投入金額換算"}
-            </small>
-          </label>
-          <div className="target-meta">
-            <div>
-              <span>預估年現金流</span>
-              <b>{money.format(monthlyTarget * 12)}</b>
-            </div>
-            <div>
-              <span>組合平均殖利率</span>
-              <b>{portfolioAverageYield.toFixed(2)}%</b>
-            </div>
-          </div>
-          <p className="link-calculation-note">
-            以預估年殖利率換算；實際配息金額與發放月份仍以各基金公告為準。
-          </p>
-        </div>
       </section>
 
       <section className="assumptions-card" aria-labelledby="assumptions-title">

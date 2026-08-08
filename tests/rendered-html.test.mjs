@@ -40,6 +40,11 @@ test("server-renders the ETF allocation product", async () => {
   assert.match(html, /每月月領金額/);
   assert.match(html, /新增投資標的/);
   assert.match(html, /總投入金額/);
+  assert.ok(
+    html.indexOf('<section class="target-section"') <
+      html.indexOf('<section class="hero"'),
+    "雙向換算應顯示在主視覺之前",
+  );
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
