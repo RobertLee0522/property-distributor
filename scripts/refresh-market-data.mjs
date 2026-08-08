@@ -62,16 +62,72 @@ async function fetchQuote(target) {
   };
 }
 
-const results = await Promise.allSettled(targets.map(fetchQuote));
-const quotes = results.map((result, index) => {
-  if (result.status === "fulfilled") return result.value;
+async function fetchDividends(target) {
+  const response = await fetch(
+    `https://www.twse.com.tw/zh/ETFortune/etfInfo/${target.code}`,
+    {
+      headers: {
+        accept: "text/html,*/*",
+        "user-agent": "Mozilla/5.0 ETF-allocator-dividend-refresh",
+      },
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`${target.code}: dividend HTTP ${response.status}`);
+  }
 
+  const html = await response.text();
+  const table = html.match(
+    /<table\s+class=["']dividend-table["'][^>]*>([\s\S]*?)<\/table>/i,
+  )?.[1];
+  if (!table) throw new Error(`${target.code}: missing dividend table`);
+
+  const dividends = [...table.matchAll(
+    /<tr>\s*<td>\s*(\d{4}\/\d{2}\/\d{2})\s*<\/td>\s*<td>\s*([\d.]+)\s*<\/td>\s*<\/tr>/gi,
+  )]
+    .map((match) => ({
+      paymentDate: match[1],
+      amount: toNumber(match[2]),
+    }))
+    .filter((item) => Number.isFinite(item.amount))
+    .slice(0, 4);
+
+  if (dividends.length === 0) {
+    throw new Error(`${target.code}: no dividend history`);
+  }
+  return dividends;
+}
+
+const [quoteResults, dividendResults] = await Promise.all([
+  Promise.allSettled(targets.map(fetchQuote)),
+  Promise.allSettled(targets.map(fetchDividends)),
+]);
+
+const quotes = quoteResults.map((result, index) => {
   const fallback = existing.quotes.find(
     (quote) => quote.code === targets[index].code,
   );
-  if (!fallback) throw result.reason;
-  console.warn(`使用 ${targets[index].code} 的備援行情：${result.reason.message}`);
-  return fallback;
+  let quote;
+  if (result.status === "fulfilled") {
+    quote = result.value;
+  } else {
+    if (!fallback) throw result.reason;
+    console.warn(`使用 ${targets[index].code} 的備援行情：${result.reason.message}`);
+    quote = fallback;
+  }
+
+  const dividendResult = dividendResults[index];
+  const dividends =
+    dividendResult.status === "fulfilled"
+      ? dividendResult.value
+      : (fallback?.dividends ?? []);
+  if (dividendResult.status === "rejected") {
+    console.warn(
+      `使用 ${targets[index].code} 的備援配息：${dividendResult.reason.message}`,
+    );
+  }
+
+  return { ...quote, dividends };
 });
 
 const validDates = quotes

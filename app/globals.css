@@ -244,6 +244,7 @@ select:focus-visible {
 }
 
 .planner-card,
+.dividend-section,
 .assumptions-card {
   padding: 36px;
   border: 1px solid rgba(23, 32, 25, 0.08);
@@ -261,6 +262,7 @@ select:focus-visible {
 
 .section-heading h2,
 .target-section h2,
+.dividend-section h2,
 .assumptions-card h2 {
   margin: 0;
   font-size: 27px;
@@ -1002,11 +1004,249 @@ select:focus-visible {
   line-height: 1.55;
 }
 
+.dividend-section {
+  margin-top: 24px;
+}
+
+.dividend-heading {
+  align-items: start;
+}
+
+.dividend-heading > p {
+  max-width: 430px;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.75;
+}
+
+.dividend-history-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.dividend-history-card {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #f7f6f1;
+}
+
+.dividend-card-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.dividend-card-title > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.dividend-card-title strong {
+  font-family: var(--font-space), sans-serif;
+  font-size: 15px;
+}
+
+.dividend-card-title small {
+  overflow: hidden;
+  margin-top: 2px;
+  color: #858d84;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dividend-card-title > b {
+  padding: 5px 8px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: #e7ebd2;
+  color: #627046;
+  font-size: 8px;
+}
+
+.dividend-records {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.dividend-records > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 10px;
+  border: 1px solid #e2e3db;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.dividend-records span {
+  color: #8a928a;
+  font-family: var(--font-space), sans-serif;
+  font-size: 8px;
+}
+
+.dividend-records strong {
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.dividend-records small {
+  margin-top: 3px;
+  color: #69746b;
+  font-size: 8px;
+}
+
+.no-dividend-history {
+  min-height: 104px;
+  padding: 18px;
+  margin: 16px 0 0;
+  border: 1px dashed #d1d5cb;
+  border-radius: 11px;
+  color: #7b847c;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.dividend-card-total {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 3px 12px;
+  padding-top: 13px;
+  margin-top: 13px;
+  border-top: 1px solid #dfe1d8;
+}
+
+.dividend-card-total span {
+  color: #7c857d;
+  font-size: 8px;
+}
+
+.dividend-card-total span:last-child {
+  grid-column: 1 / -1;
+  color: #52634b;
+  font-size: 9px;
+}
+
+.dividend-card-total b {
+  font-family: var(--font-space), sans-serif;
+  font-size: 13px;
+}
+
+.cashflow-calendar {
+  padding: 24px;
+  margin-top: 18px;
+  border-radius: 20px;
+  background: var(--ink);
+  color: #f4f6ed;
+}
+
+.cashflow-calendar-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.cashflow-calendar-heading > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.cashflow-calendar-heading > div:last-child {
+  align-items: end;
+  text-align: right;
+}
+
+.cashflow-calendar-heading span,
+.cashflow-calendar-heading small {
+  color: rgba(244, 246, 237, 0.5);
+  font-size: 9px;
+}
+
+.cashflow-calendar-heading strong {
+  margin-top: 4px;
+  font-size: 15px;
+}
+
+.cashflow-calendar-heading > div:last-child strong {
+  color: var(--lime);
+  font-family: var(--font-space), var(--font-noto), sans-serif;
+  font-size: 24px;
+}
+
+.cashflow-month-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.cashflow-month-grid article {
+  min-width: 0;
+  min-height: 100px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.cashflow-month-grid article.has-cashflow {
+  border-color: rgba(216, 240, 107, 0.28);
+  background: rgba(216, 240, 107, 0.08);
+}
+
+.cashflow-month-grid article > span {
+  color: rgba(244, 246, 237, 0.48);
+  font-size: 9px;
+}
+
+.cashflow-month-grid article > strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 7px;
+  font-family: var(--font-space), var(--font-noto), sans-serif;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cashflow-month-grid article > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.cashflow-month-grid small {
+  padding: 3px 5px;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(244, 246, 237, 0.62);
+  font-size: 7px;
+}
+
+.cashflow-formula-note {
+  margin: 16px 0 0;
+  color: rgba(244, 246, 237, 0.52);
+  font-size: 9px;
+  line-height: 1.65;
+}
+
 .assumptions-card {
   display: grid;
   grid-template-columns: 0.82fr 1.18fr;
   gap: 55px;
   align-items: center;
+  margin-top: 24px;
   box-shadow: none;
 }
 
@@ -1129,6 +1369,10 @@ footer p {
     grid-template-columns: 1fr;
     gap: 28px;
   }
+
+  .cashflow-month-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -1160,6 +1404,7 @@ footer p {
   }
 
   .planner-card,
+  .dividend-section,
   .assumptions-card {
     padding: 24px 18px;
     border-radius: 22px;
@@ -1167,6 +1412,33 @@ footer p {
 
   .section-heading {
     align-items: start;
+  }
+
+  .dividend-heading,
+  .cashflow-calendar-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dividend-heading > p {
+    max-width: none;
+  }
+
+  .dividend-history-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cashflow-calendar {
+    padding: 19px 14px;
+  }
+
+  .cashflow-calendar-heading > div:last-child {
+    align-items: start;
+    text-align: left;
+  }
+
+  .cashflow-month-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .refresh-button {

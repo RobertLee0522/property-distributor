@@ -6,70 +6,233 @@
       "name": "元大高股息",
       "price": 51.05,
       "previousPrice": 51.3,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/08/10",
+          "amount": 1.35
+        },
+        {
+          "paymentDate": "2026/05/14",
+          "amount": 1
+        },
+        {
+          "paymentDate": "2026/02/11",
+          "amount": 0.866
+        },
+        {
+          "paymentDate": "2025/11/14",
+          "amount": 0.866
+        }
+      ]
     },
     {
       "code": "00713",
       "name": "元大台灣高息低波",
       "price": 61.3,
       "previousPrice": 61.1,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/07/10",
+          "amount": 1
+        },
+        {
+          "paymentDate": "2026/04/14",
+          "amount": 0.78
+        },
+        {
+          "paymentDate": "2026/01/12",
+          "amount": 0.78
+        },
+        {
+          "paymentDate": "2025/10/15",
+          "amount": 0.78
+        }
+      ]
     },
     {
       "code": "00878",
       "name": "國泰永續高股息",
       "price": 32.81,
       "previousPrice": 32.84,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/06/12",
+          "amount": 0.66
+        },
+        {
+          "paymentDate": "2026/03/23",
+          "amount": 0.42
+        },
+        {
+          "paymentDate": "2025/12/12",
+          "amount": 0.4
+        },
+        {
+          "paymentDate": "2025/09/11",
+          "amount": 0.4
+        }
+      ]
     },
     {
       "code": "00687B",
       "name": "國泰20年美債",
       "price": 27.49,
       "previousPrice": 27.76,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/07/13",
+          "amount": 0.262
+        },
+        {
+          "paymentDate": "2026/04/14",
+          "amount": 0.28
+        },
+        {
+          "paymentDate": "2026/01/13",
+          "amount": 0.28
+        },
+        {
+          "paymentDate": "2025/10/15",
+          "amount": 0.3
+        }
+      ]
     },
     {
       "code": "0050",
       "name": "元大台灣50",
       "price": 102.85,
       "previousPrice": 103.3,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/08/10",
+          "amount": 0.6
+        },
+        {
+          "paymentDate": "2026/02/11",
+          "amount": 1
+        },
+        {
+          "paymentDate": "2025/08/08",
+          "amount": 0.36
+        },
+        {
+          "paymentDate": "2025/02/20",
+          "amount": 2.7
+        }
+      ]
     },
     {
       "code": "006208",
       "name": "富邦台50",
       "price": 235.35,
       "previousPrice": 236.55,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/08/10",
+          "amount": 4.75
+        },
+        {
+          "paymentDate": "2025/12/11",
+          "amount": 3.448
+        },
+        {
+          "paymentDate": "2025/08/08",
+          "amount": 0.989
+        },
+        {
+          "paymentDate": "2024/12/12",
+          "amount": 0.9
+        }
+      ]
     },
     {
       "code": "00919",
       "name": "群益台灣精選高息",
       "price": 29.74,
       "previousPrice": 29.6,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/07/13",
+          "amount": 1
+        },
+        {
+          "paymentDate": "2026/04/14",
+          "amount": 0.78
+        },
+        {
+          "paymentDate": "2026/01/13",
+          "amount": 0.54
+        },
+        {
+          "paymentDate": "2025/10/15",
+          "amount": 0.54
+        }
+      ]
     },
     {
       "code": "00929",
       "name": "復華台灣科技優息",
       "price": 28.59,
       "previousPrice": 28.94,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/08/14",
+          "amount": 0.38
+        },
+        {
+          "paymentDate": "2026/07/13",
+          "amount": 0.26
+        },
+        {
+          "paymentDate": "2026/06/15",
+          "amount": 0.13
+        },
+        {
+          "paymentDate": "2026/05/18",
+          "amount": 0.13
+        }
+      ]
     },
     {
       "code": "00940",
       "name": "元大台灣價值高息",
       "price": 12.4,
       "previousPrice": 12.45,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": [
+        {
+          "paymentDate": "2026/09/01",
+          "amount": 0.05
+        },
+        {
+          "paymentDate": "2026/08/03",
+          "amount": 0.05
+        },
+        {
+          "paymentDate": "2026/07/01",
+          "amount": 0.05
+        },
+        {
+          "paymentDate": "2026/06/01",
+          "amount": 0.045
+        }
+      ]
     },
     {
       "code": "00679B",
       "name": "元大美債20年",
       "price": 26.41,
       "previousPrice": 26.66,
-      "updatedAt": "2026-08-07T14:30:00+08:00"
+      "updatedAt": "2026-08-07T14:30:00+08:00",
+      "dividends": []
     }
   ]
 }

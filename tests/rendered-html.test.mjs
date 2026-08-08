@@ -40,6 +40,10 @@ test("server-renders the ETF allocation product", async () => {
   assert.match(html, /每月月領金額/);
   assert.match(html, /新增投資標的/);
   assert.match(html, /總投入金額/);
+  assert.match(html, /最近四次配息，拆成每個月看/);
+  assert.match(html, /12 個月預估入帳分布/);
+  assert.match(html, /近四次合計／每股/);
+  assert.match(html, /全部所選標的近四次預估配息加總/);
   assert.ok(
     html.indexOf('<section class="target-section"') <
       html.indexOf('<section class="hero"'),
