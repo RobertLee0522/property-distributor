@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-07T14:30:00+08:00",
+  "updatedAt": "2026-08-07T06:30:00.000Z",
   "quotes": [
     {
       "code": "0056",
@@ -27,6 +27,48 @@
       "name": "國泰20年美債",
       "price": 27.49,
       "previousPrice": 27.76,
+      "updatedAt": "2026-08-07T14:30:00+08:00"
+    },
+    {
+      "code": "0050",
+      "name": "元大台灣50",
+      "price": 102.85,
+      "previousPrice": 103.3,
+      "updatedAt": "2026-08-07T14:30:00+08:00"
+    },
+    {
+      "code": "006208",
+      "name": "富邦台50",
+      "price": 235.35,
+      "previousPrice": 236.55,
+      "updatedAt": "2026-08-07T14:30:00+08:00"
+    },
+    {
+      "code": "00919",
+      "name": "群益台灣精選高息",
+      "price": 29.74,
+      "previousPrice": 29.6,
+      "updatedAt": "2026-08-07T14:30:00+08:00"
+    },
+    {
+      "code": "00929",
+      "name": "復華台灣科技優息",
+      "price": 28.59,
+      "previousPrice": 28.94,
+      "updatedAt": "2026-08-07T14:30:00+08:00"
+    },
+    {
+      "code": "00940",
+      "name": "元大台灣價值高息",
+      "price": 12.4,
+      "previousPrice": 12.45,
+      "updatedAt": "2026-08-07T14:30:00+08:00"
+    },
+    {
+      "code": "00679B",
+      "name": "元大美債20年",
+      "price": 26.41,
+      "previousPrice": 26.66,
       "updatedAt": "2026-08-07T14:30:00+08:00"
     }
   ]

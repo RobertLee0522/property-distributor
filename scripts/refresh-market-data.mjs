@@ -10,6 +10,12 @@ const targets = [
   { code: "00713", market: "tse" },
   { code: "00878", market: "tse" },
   { code: "00687B", market: "otc" },
+  { code: "0050", market: "tse" },
+  { code: "006208", market: "tse" },
+  { code: "00919", market: "tse" },
+  { code: "00929", market: "tse" },
+  { code: "00940", market: "tse" },
+  { code: "00679B", market: "otc" },
 ];
 
 const existing = JSON.parse(await readFile("public/market-data.json", "utf8"));

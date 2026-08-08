@@ -37,7 +37,9 @@ test("server-renders the ETF allocation product", async () => {
   assert.match(html, /00713/);
   assert.match(html, /00878/);
   assert.match(html, /00687B/);
-  assert.match(html, /每月希望領到/);
+  assert.match(html, /每月月領金額/);
+  assert.match(html, /新增投資標的/);
+  assert.match(html, /總投入金額/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 

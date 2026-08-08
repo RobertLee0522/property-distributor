@@ -20,6 +20,14 @@ type MarketQuote = {
   updatedAt?: string;
 };
 
+type AssetDraft = {
+  code: string;
+  market: "tse" | "otc";
+  name: string;
+  price: string;
+  yieldRate: string;
+};
+
 const DEFAULT_ASSETS: Asset[] = [
   {
     code: "0056",
@@ -59,6 +67,86 @@ const DEFAULT_ASSETS: Asset[] = [
   },
 ];
 
+const SUGGESTED_ASSETS: Asset[] = [
+  {
+    code: "0050",
+    market: "tse",
+    name: "元大台灣50",
+    price: 102.85,
+    previousPrice: 103.3,
+    yieldRate: 2.5,
+    accent: "#4377bd",
+  },
+  {
+    code: "006208",
+    market: "tse",
+    name: "富邦台50",
+    price: 235.35,
+    previousPrice: 236.55,
+    yieldRate: 2.6,
+    accent: "#7b62b3",
+  },
+  {
+    code: "00919",
+    market: "tse",
+    name: "群益台灣精選高息",
+    price: 29.74,
+    previousPrice: 29.6,
+    yieldRate: 10,
+    accent: "#3997a3",
+  },
+  {
+    code: "00929",
+    market: "tse",
+    name: "復華台灣科技優息",
+    price: 28.59,
+    previousPrice: 28.94,
+    yieldRate: 6,
+    accent: "#ba6a9c",
+  },
+  {
+    code: "00940",
+    market: "tse",
+    name: "元大台灣價值高息",
+    price: 12.4,
+    previousPrice: 12.45,
+    yieldRate: 8,
+    accent: "#a37b3b",
+  },
+  {
+    code: "00679B",
+    market: "otc",
+    name: "元大美債20年",
+    price: 26.41,
+    previousPrice: 26.66,
+    yieldRate: 4.5,
+    accent: "#6f8796",
+  },
+];
+
+const ASSET_CATALOG = [...DEFAULT_ASSETS, ...SUGGESTED_ASSETS];
+const ACCENT_COLORS = [
+  "#5662d9",
+  "#2d8c73",
+  "#d4853d",
+  "#c85b68",
+  "#4377bd",
+  "#7b62b3",
+  "#3997a3",
+  "#ba6a9c",
+  "#a37b3b",
+  "#6f8796",
+];
+const PORTFOLIO_STORAGE_KEY = "peipeikan-portfolio-v1";
+
+const EMPTY_DRAFT: AssetDraft = {
+  code: "",
+  market: "tse",
+  name: "",
+  price: "",
+  yieldRate: "",
+};
+
 const money = new Intl.NumberFormat("zh-TW", {
   style: "currency",
   currency: "TWD",
@@ -72,11 +160,24 @@ function parseNumericInput(value: string) {
   return Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
 }
 
+function getAverageYield(assets: Asset[]) {
+  if (assets.length === 0) return 0;
+  return assets.reduce((sum, asset) => sum + asset.yieldRate, 0) / assets.length;
+}
+
 export default function Home() {
   const [budget, setBudget] = useState(200000);
-  const [monthlyTarget, setMonthlyTarget] = useState(7000);
+  const [monthlyTarget, setMonthlyTarget] = useState(1238);
+  const [linkDirection, setLinkDirection] = useState<"capital" | "income">(
+    "capital",
+  );
   const [unit, setUnit] = useState<1 | 1000>(1);
   const [assets, setAssets] = useState(DEFAULT_ASSETS);
+  const [marketQuotes, setMarketQuotes] = useState<MarketQuote[]>([]);
+  const [portfolioReady, setPortfolioReady] = useState(false);
+  const [isAddingAsset, setIsAddingAsset] = useState(false);
+  const [assetDraft, setAssetDraft] = useState<AssetDraft>(EMPTY_DRAFT);
+  const [assetError, setAssetError] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [marketStatus, setMarketStatus] = useState<"ready" | "live" | "fallback">(
     "ready",
@@ -97,6 +198,8 @@ export default function Home() {
         quotes?: MarketQuote[];
       };
       if (!payload.quotes?.length) throw new Error("No quotes");
+
+      setMarketQuotes(payload.quotes);
 
       setAssets((current) =>
         current.map((asset) => {
@@ -130,11 +233,42 @@ export default function Home() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem(PORTFOLIO_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as Asset[];
+          if (
+            Array.isArray(parsed) &&
+            parsed.length > 0 &&
+            parsed.every(
+              (asset) =>
+                typeof asset.code === "string" &&
+                typeof asset.name === "string" &&
+                Number.isFinite(asset.price) &&
+                Number.isFinite(asset.yieldRate),
+            )
+          ) {
+            setAssets(parsed);
+            setMonthlyTarget((200000 * getAverageYield(parsed)) / 100 / 12);
+          }
+        }
+      } catch {
+        window.localStorage.removeItem(PORTFOLIO_STORAGE_KEY);
+      }
+
+      setPortfolioReady(true);
       void refreshMarket(true);
     }, 0);
 
     return () => window.clearTimeout(timer);
   }, [refreshMarket]);
+
+  useEffect(() => {
+    if (!portfolioReady) return;
+    window.localStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify(assets));
+  }, [assets, portfolioReady]);
+
+  const portfolioAverageYield = useMemo(() => getAverageYield(assets), [assets]);
 
   const calculations = useMemo(() => {
     const equalShare = budget / assets.length;
@@ -152,8 +286,7 @@ export default function Home() {
       (sum, item) => sum + item.annualDividend,
       0,
     );
-    const averageYield =
-      assets.reduce((sum, item) => sum + item.yieldRate, 0) / assets.length;
+    const averageYield = portfolioAverageYield;
     const requiredCapital =
       averageYield > 0 ? (monthlyTarget * 12) / (averageYield / 100) : 0;
 
@@ -166,15 +299,109 @@ export default function Home() {
       requiredCapital,
       gap: Math.max(requiredCapital - budget, 0),
     };
-  }, [assets, budget, calculations, monthlyTarget]);
+  }, [budget, calculations, monthlyTarget, portfolioAverageYield]);
+
+  const syncForAssets = (nextAssets: Asset[]) => {
+    const nextYield = getAverageYield(nextAssets);
+    setAssets(nextAssets);
+    if (linkDirection === "capital") {
+      setMonthlyTarget((budget * nextYield) / 100 / 12);
+    } else {
+      setBudget(nextYield > 0 ? (monthlyTarget * 12) / (nextYield / 100) : 0);
+    }
+  };
+
+  const updateBudget = (value: string) => {
+    const nextBudget = parseNumericInput(value);
+    setLinkDirection("capital");
+    setBudget(nextBudget);
+    setMonthlyTarget((nextBudget * portfolioAverageYield) / 100 / 12);
+  };
+
+  const updateMonthlyIncome = (value: string) => {
+    const nextIncome = parseNumericInput(value);
+    setLinkDirection("income");
+    setMonthlyTarget(nextIncome);
+    setBudget(
+      portfolioAverageYield > 0
+        ? (nextIncome * 12) / (portfolioAverageYield / 100)
+        : 0,
+    );
+  };
 
   const updateAsset = (code: string, field: "price" | "yieldRate", value: string) => {
     const nextValue = parseNumericInput(value);
-    setAssets((current) =>
-      current.map((asset) =>
-        asset.code === code ? { ...asset, [field]: nextValue } : asset,
-      ),
+    const nextAssets = assets.map((asset) =>
+      asset.code === code ? { ...asset, [field]: nextValue } : asset,
     );
+    if (field === "yieldRate") syncForAssets(nextAssets);
+    else setAssets(nextAssets);
+  };
+
+  const addAsset = (asset: Asset) => {
+    if (assets.some((item) => item.code === asset.code)) {
+      setAssetError(`${asset.code} 已經在投資組合中`);
+      return;
+    }
+
+    const quote = marketQuotes.find((item) => item.code === asset.code);
+    syncForAssets([
+      ...assets,
+      {
+        ...asset,
+        price: quote?.price ?? asset.price,
+        previousPrice: quote?.previousPrice ?? asset.previousPrice,
+      },
+    ]);
+    setAssetError("");
+  };
+
+  const removeAsset = (code: string) => {
+    if (assets.length <= 1) return;
+    syncForAssets(assets.filter((asset) => asset.code !== code));
+  };
+
+  const updateDraftCode = (value: string) => {
+    const code = value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 10);
+    const preset = ASSET_CATALOG.find((asset) => asset.code === code);
+    setAssetDraft((current) =>
+      preset
+        ? {
+            code,
+            market: preset.market,
+            name: preset.name,
+            price: String(preset.price),
+            yieldRate: String(preset.yieldRate),
+          }
+        : { ...current, code },
+    );
+    setAssetError("");
+  };
+
+  const submitCustomAsset = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const code = assetDraft.code.trim().toUpperCase();
+    const name = assetDraft.name.trim();
+    const price = parseNumericInput(assetDraft.price);
+    const yieldRate = parseNumericInput(assetDraft.yieldRate);
+
+    if (!code || !name || price <= 0) {
+      setAssetError("請填寫代號、名稱與大於 0 的參考價");
+      return;
+    }
+
+    addAsset({
+      code,
+      market: assetDraft.market,
+      name,
+      price,
+      previousPrice: price,
+      yieldRate,
+      accent: ACCENT_COLORS[assets.length % ACCENT_COLORS.length],
+    });
+    if (!assets.some((asset) => asset.code === code)) {
+      setAssetDraft(EMPTY_DRAFT);
+    }
   };
 
   return (
@@ -202,7 +429,7 @@ export default function Home() {
             <span>配成看得懂的現金流。</span>
           </h1>
           <p className="hero-description">
-            輸入預算，自動平均配置四檔 ETF；也能從每月想領的金額，反推需要準備的本金。
+            輸入預算，自由增減投資標的並平均配置；也能從每月想領的金額，反推需要準備的本金。
           </p>
         </div>
 
@@ -253,7 +480,7 @@ export default function Home() {
                 aria-label="可投入預算"
                 inputMode="numeric"
                 value={number.format(budget)}
-                onChange={(event) => setBudget(parseNumericInput(event.target.value))}
+                onChange={(event) => updateBudget(event.target.value)}
               />
             </div>
           </label>
@@ -303,6 +530,16 @@ export default function Home() {
                     <strong>{asset.code}</strong>
                     <small>{asset.name}</small>
                   </div>
+                  <button
+                    className="remove-asset-button"
+                    type="button"
+                    onClick={() => removeAsset(asset.code)}
+                    disabled={assets.length === 1}
+                    aria-label={`移除 ${asset.code}`}
+                    title={assets.length === 1 ? "至少保留一檔標的" : `移除 ${asset.code}`}
+                  >
+                    移除
+                  </button>
                 </div>
                 <label className="editable-value price-value">
                   <span className="mobile-label">參考價</span>
@@ -339,56 +576,206 @@ export default function Home() {
             );
           })}
         </div>
+
+        <div className="portfolio-actions">
+          <div>
+            <strong>目前 {assets.length} 檔</strong>
+            <span>預算會平均分成 {assets.length} 份</span>
+          </div>
+          <button
+            className="add-asset-button"
+            type="button"
+            onClick={() => {
+              setIsAddingAsset((current) => !current);
+              setAssetError("");
+            }}
+            aria-expanded={isAddingAsset}
+          >
+            <span aria-hidden="true">＋</span>
+            {isAddingAsset ? "收起新增區" : "新增投資標的"}
+          </button>
+        </div>
+
+        {isAddingAsset && (
+          <div className="asset-builder">
+            <div className="asset-builder-heading">
+              <div>
+                <span>快速加入</span>
+                <h3>選一檔常用 ETF</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => syncForAssets(DEFAULT_ASSETS)}
+                className="reset-assets-button"
+              >
+                恢復預設四檔
+              </button>
+            </div>
+
+            <div className="suggested-assets">
+              {SUGGESTED_ASSETS.map((asset) => {
+                const isSelected = assets.some((item) => item.code === asset.code);
+                return (
+                  <button
+                    type="button"
+                    key={asset.code}
+                    disabled={isSelected}
+                    onClick={() => addAsset(asset)}
+                  >
+                    <i style={{ background: asset.accent }} />
+                    <span>
+                      <strong>{asset.code}</strong>
+                      <small>{asset.name}</small>
+                    </span>
+                    <b>{isSelected ? "已加入" : "＋"}</b>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="custom-asset-title">
+              <span>或輸入其他股票／ETF</span>
+              <small>自訂標的請自行填寫參考價；常用 ETF 會隨網站行情更新。</small>
+            </div>
+            <form className="custom-asset-form" onSubmit={submitCustomAsset}>
+              <label>
+                <span>代號</span>
+                <input
+                  value={assetDraft.code}
+                  onChange={(event) => updateDraftCode(event.target.value)}
+                  placeholder="例如 2330"
+                  aria-label="新增標的代號"
+                />
+              </label>
+              <label className="asset-name-input">
+                <span>名稱</span>
+                <input
+                  value={assetDraft.name}
+                  onChange={(event) =>
+                    setAssetDraft((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                  placeholder="例如 台積電"
+                  aria-label="新增標的名稱"
+                />
+              </label>
+              <label>
+                <span>市場</span>
+                <select
+                  value={assetDraft.market}
+                  onChange={(event) =>
+                    setAssetDraft((current) => ({
+                      ...current,
+                      market: event.target.value as "tse" | "otc",
+                    }))
+                  }
+                  aria-label="新增標的市場"
+                >
+                  <option value="tse">上市</option>
+                  <option value="otc">上櫃</option>
+                </select>
+              </label>
+              <label>
+                <span>參考價</span>
+                <input
+                  inputMode="decimal"
+                  value={assetDraft.price}
+                  onChange={(event) =>
+                    setAssetDraft((current) => ({
+                      ...current,
+                      price: event.target.value,
+                    }))
+                  }
+                  placeholder="0.00"
+                  aria-label="新增標的參考價"
+                />
+              </label>
+              <label>
+                <span>預估殖利率</span>
+                <div className="percent-input">
+                  <input
+                    inputMode="decimal"
+                    value={assetDraft.yieldRate}
+                    onChange={(event) =>
+                      setAssetDraft((current) => ({
+                        ...current,
+                        yieldRate: event.target.value,
+                      }))
+                    }
+                    placeholder="0.0"
+                    aria-label="新增標的預估殖利率"
+                  />
+                  <b>%</b>
+                </div>
+              </label>
+              <button className="submit-asset-button" type="submit">
+                加入組合
+              </button>
+            </form>
+            {assetError && <p className="asset-error" role="alert">{assetError}</p>}
+          </div>
+        )}
       </section>
 
       <section className="target-section" aria-labelledby="target-title">
         <div className="target-copy">
-          <p className="step-label">02 ／ 月月領目標</p>
-          <h2 id="target-title">想每月領多少？</h2>
+          <p className="step-label">02 ／ 雙向換算</p>
+          <h2 id="target-title">投入本金 ⇄ 每月月領</h2>
           <p>
-            以四檔平均配置和目前設定的殖利率估算。配息實際發放月份不同，這裡將全年金額平滑換算成每月。
+            兩邊都可以輸入。改總投入會算出每月月領；改每月月領則會反推總投入，並依目前 {assets.length} 檔的平均殖利率同步更新。
           </p>
 
           <label className="target-input">
-            <span>每月希望領到</span>
+            <span>總投入金額</span>
             <div>
               <b>NT$</b>
               <input
-                aria-label="每月希望領到的配息"
+                aria-label="雙向換算總投入金額"
                 inputMode="numeric"
-                value={number.format(monthlyTarget)}
-                onChange={(event) =>
-                  setMonthlyTarget(parseNumericInput(event.target.value))
-                }
+                value={number.format(budget)}
+                onChange={(event) => updateBudget(event.target.value)}
               />
-              <em>／ 月</em>
+              <em>本金</em>
             </div>
+            <small className={linkDirection === "capital" ? "active-link-side" : ""}>
+              {linkDirection === "capital" ? "你最後輸入這一側" : "由月領金額反推"}
+            </small>
           </label>
         </div>
 
         <div className="target-result">
-          <span>估計需要準備本金</span>
-          <strong>{money.format(totals.requiredCapital)}</strong>
+          <div className="link-direction-mark" aria-hidden="true">⇄</div>
+          <label className="monthly-income-input">
+            <span>每月月領金額</span>
+            <div>
+              <b>NT$</b>
+              <input
+                aria-label="雙向換算每月月領金額"
+                inputMode="numeric"
+                value={number.format(monthlyTarget)}
+                onChange={(event) => updateMonthlyIncome(event.target.value)}
+              />
+              <em>／ 月</em>
+            </div>
+            <small className={linkDirection === "income" ? "active-link-side" : ""}>
+              {linkDirection === "income" ? "你最後輸入這一側" : "由總投入金額換算"}
+            </small>
+          </label>
           <div className="target-meta">
             <div>
-              <span>年配息目標</span>
+              <span>預估年現金流</span>
               <b>{money.format(monthlyTarget * 12)}</b>
             </div>
             <div>
-              <span>與目前預算差額</span>
-              <b>{totals.gap > 0 ? money.format(totals.gap) : "已達標"}</b>
+              <span>組合平均殖利率</span>
+              <b>{portfolioAverageYield.toFixed(2)}%</b>
             </div>
           </div>
-          <div className="progress-track" aria-label="目前預算達成率">
-            <span
-              style={{
-                width: `${Math.min((budget / Math.max(totals.requiredCapital, 1)) * 100, 100)}%`,
-              }}
-            />
-          </div>
-          <small>
-            目前預算約達成 {Math.min((budget / Math.max(totals.requiredCapital, 1)) * 100, 100).toFixed(1)}%
-          </small>
+          <p className="link-calculation-note">
+            以預估年殖利率換算；實際配息金額與發放月份仍以各基金公告為準。
+          </p>
         </div>
       </section>
 
