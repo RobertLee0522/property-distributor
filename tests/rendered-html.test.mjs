@@ -127,6 +127,14 @@ test("real-time price cell renders a 10-day candlestick chart", async () => {
       ...chartHtml.matchAll(/<g class="is-(?:up|down)" title="([^"]+)"/g),
     ];
     assert.equal(candles.length, 10, "每組K線圖應顯示最近 10 個交易日");
+
+    const averageLine = chartHtml.match(
+      /<polyline class="candlestick-average-line"[^>]*points="([^"]+)"/,
+    );
+    assert.ok(averageLine, "K線圖應包含平均價格曲線");
+    const points = averageLine[1].trim().split(/\s+/);
+    assert.equal(points.length, 10, "平均價格曲線應該有 10 個點，對應每根 K 棒");
+
     for (const [, title] of candles) {
       // 迴歸測試：SVG 內的 <title> 元素在這個框架的 SSR 下會被清空，
       // 提示文字必須改放在 <g title="..."> 屬性上才會真的送到瀏覽器。

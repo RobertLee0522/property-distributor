@@ -410,8 +410,15 @@ function enrichStoredAsset(asset: Asset) {
   } satisfies Asset;
 }
 
+function getAveragePrice(candle: Candle) {
+  return (candle.open + candle.high + candle.low + candle.close) / 4;
+}
+
 function CandlestickChart({ asset }: { asset: Asset }) {
   const candles = getRecentCandles(asset);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
   if (candles.length === 0) return null;
 
   const barWidth = 6;
@@ -424,42 +431,117 @@ function CandlestickChart({ asset }: { asset: Asset }) {
   const span = Math.max(high - low, 0.0001);
   const scaleY = (value: number) =>
     padding + ((high - value) / span) * (height - padding * 2);
+  const xFor = (index: number) => index * (barWidth + gap) + barWidth / 2;
+
+  const indexFromClientX = (clientX: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return null;
+    const ratio = (clientX - rect.left) / rect.width;
+    return Math.min(candles.length - 1, Math.max(0, Math.floor(ratio * candles.length)));
+  };
+
+  // 桌機：滑鼠移動時即時跟著游標高亮對應的 K 棒；離開圖表就收起。
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") return;
+    setActiveIndex(indexFromClientX(event.clientX));
+  };
+
+  const handlePointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") return;
+    setActiveIndex(null);
+  };
+
+  // 手機：改成點擊切換，點同一根 K 棒再收起。
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse") return;
+    const index = indexFromClientX(event.clientX);
+    setActiveIndex((current) => (current === index ? null : index));
+  };
+
+  const averagePoints = candles
+    .map((candle, index) => `${xFor(index)},${scaleY(getAveragePrice(candle))}`)
+    .join(" ");
+
+  const active = activeIndex !== null ? candles[activeIndex] : null;
 
   return (
-    <svg
-      className="candlestick-chart"
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      role="img"
-      aria-label={`${asset.code} 近 ${candles.length} 個交易日走勢，開盤 ${candles[0].open} 收盤 ${candles[candles.length - 1].close}`}
+    <div
+      className="candlestick-chart-wrap"
+      ref={containerRef}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      onPointerUp={handlePointerUp}
     >
-      {candles.map((candle, index) => {
-        const isUp = candle.close >= candle.open;
-        const x = index * (barWidth + gap);
-        const bodyTop = scaleY(Math.max(candle.open, candle.close));
-        const bodyBottom = scaleY(Math.min(candle.open, candle.close));
-        return (
-          <g
-            key={candle.date}
-            className={isUp ? "is-up" : "is-down"}
-            title={`${candle.date}｜開 ${candle.open}／高 ${candle.high}／低 ${candle.low}／收 ${candle.close}`}
-          >
+      <svg
+        className="candlestick-chart"
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`${asset.code} 近 ${candles.length} 個交易日走勢，開盤 ${candles[0].open} 收盤 ${candles[candles.length - 1].close}`}
+      >
+        {candles.map((candle, index) => {
+          const isUp = candle.close >= candle.open;
+          const x = index * (barWidth + gap);
+          const bodyTop = scaleY(Math.max(candle.open, candle.close));
+          const bodyBottom = scaleY(Math.min(candle.open, candle.close));
+          return (
+            <g
+              key={candle.date}
+              className={isUp ? "is-up" : "is-down"}
+              title={`${candle.date}｜開 ${candle.open}／高 ${candle.high}／低 ${candle.low}／收 ${candle.close}`}
+            >
+              <line
+                x1={x + barWidth / 2}
+                x2={x + barWidth / 2}
+                y1={scaleY(candle.high)}
+                y2={scaleY(candle.low)}
+              />
+              <rect
+                x={x}
+                y={bodyTop}
+                width={barWidth}
+                height={Math.max(bodyBottom - bodyTop, 1)}
+              />
+            </g>
+          );
+        })}
+        <polyline
+          className="candlestick-average-line"
+          style={{ stroke: asset.accent }}
+          points={averagePoints}
+        />
+        {active && (
+          <g className="candlestick-crosshair" aria-hidden="true">
+            <line x1={xFor(activeIndex!)} x2={xFor(activeIndex!)} y1={0} y2={height} />
             <line
-              x1={x + barWidth / 2}
-              x2={x + barWidth / 2}
-              y1={scaleY(candle.high)}
-              y2={scaleY(candle.low)}
+              x1={0}
+              x2={width}
+              y1={scaleY(active.close)}
+              y2={scaleY(active.close)}
             />
-            <rect
-              x={x}
-              y={bodyTop}
-              width={barWidth}
-              height={Math.max(bodyBottom - bodyTop, 1)}
-            />
+            <circle cx={xFor(activeIndex!)} cy={scaleY(active.close)} r={1.6} />
           </g>
-        );
-      })}
-    </svg>
+        )}
+      </svg>
+      {active && (
+        <div
+          className="candle-tooltip"
+          style={{
+            left: `${(xFor(activeIndex!) / width) * 100}%`,
+            transform:
+              activeIndex! <= 1
+                ? "translateX(0)"
+                : activeIndex! >= candles.length - 2
+                  ? "translateX(-100%)"
+                  : "translateX(-50%)",
+          }}
+          aria-live="polite"
+        >
+          <span>{active.date.slice(5)}</span>
+          <b>{decimal.format(active.close)}</b>
+        </div>
+      )}
+    </div>
   );
 }
 

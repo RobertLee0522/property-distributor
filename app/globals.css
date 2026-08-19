@@ -543,10 +543,19 @@ select:focus-visible {
   color: #4b8b67;
 }
 
-.candlestick-chart {
+.candlestick-chart-wrap {
+  position: relative;
   width: 100%;
   height: 30px;
   margin-top: 7px;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.candlestick-chart {
+  display: block;
+  width: 100%;
+  height: 100%;
   overflow: visible;
 }
 
@@ -564,6 +573,49 @@ select:focus-visible {
 
 .candlestick-chart line {
   stroke-width: 1;
+}
+
+.candlestick-average-line {
+  fill: none;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.65;
+  vector-effect: non-scaling-stroke;
+}
+
+.candlestick-crosshair line {
+  stroke: var(--ink);
+  stroke-width: 0.5;
+  stroke-dasharray: 1.5 1.5;
+  opacity: 0.55;
+}
+
+.candlestick-crosshair circle {
+  fill: var(--ink);
+}
+
+.candle-tooltip {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--white);
+  font-family: var(--font-space), var(--font-noto), sans-serif;
+  font-size: 9px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.candle-tooltip b {
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .row-metric {
