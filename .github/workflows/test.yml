@@ -1,0 +1,28 @@
+name: 功能驗證與測試
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 讀取網站程式
+        uses: actions/checkout@v4
+
+      - name: 準備 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安裝套件
+        run: npm ci
+
+      - name: 程式碼檢查
+        run: npm run lint
+
+      - name: 建置並執行測試
+        run: npm test
