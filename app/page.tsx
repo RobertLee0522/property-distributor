@@ -7,6 +7,14 @@ type DividendRecord = {
   amount: number;
 };
 
+type Candle = {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
+
 type Asset = {
   code: string;
   market: "tse" | "otc";
@@ -16,6 +24,7 @@ type Asset = {
   yieldRate: number;
   yieldMode?: "history" | "manual";
   dividends?: DividendRecord[];
+  candles?: Candle[];
   accent: string;
 };
 
@@ -26,6 +35,7 @@ type MarketQuote = {
   name?: string;
   updatedAt?: string;
   dividends?: DividendRecord[];
+  candles?: Candle[];
 };
 
 type AssetDraft = {
@@ -51,6 +61,18 @@ const DEFAULT_ASSETS: Asset[] = [
       { paymentDate: "2026/02/11", amount: 0.866 },
       { paymentDate: "2025/11/14", amount: 0.866 },
     ],
+    candles: [
+      { date: "2026/08/05", open: 51.71, high: 51.82, low: 51.57, close: 51.61 },
+      { date: "2026/08/06", open: 51.63, high: 51.77, low: 51.31, close: 51.45 },
+      { date: "2026/08/07", open: 51.34, high: 51.69, low: 51.2, close: 51.52 },
+      { date: "2026/08/10", open: 51.52, high: 51.74, low: 51.41, close: 51.67 },
+      { date: "2026/08/11", open: 51.57, high: 51.74, low: 51.49, close: 51.73 },
+      { date: "2026/08/12", open: 51.84, high: 51.86, low: 51.36, close: 51.49 },
+      { date: "2026/08/13", open: 51.55, high: 51.69, low: 51.35, close: 51.5 },
+      { date: "2026/08/14", open: 51.42, high: 51.46, low: 51.11, close: 51.21 },
+      { date: "2026/08/17", open: 51.22, high: 51.35, low: 51.1, close: 51.3 },
+      { date: "2026/08/18", open: 51.33, high: 51.36, low: 51, close: 51.05 },
+    ],
     accent: "#5662d9",
   },
   {
@@ -66,6 +88,18 @@ const DEFAULT_ASSETS: Asset[] = [
       { paymentDate: "2026/04/14", amount: 0.78 },
       { paymentDate: "2026/01/12", amount: 0.78 },
       { paymentDate: "2025/10/15", amount: 0.78 },
+    ],
+    candles: [
+      { date: "2026/08/05", open: 61.72, high: 62.02, low: 61.54, close: 61.8 },
+      { date: "2026/08/06", open: 61.85, high: 62.25, low: 61.73, close: 62.06 },
+      { date: "2026/08/07", open: 62.09, high: 62.23, low: 61.78, close: 61.93 },
+      { date: "2026/08/10", open: 61.88, high: 62.39, low: 61.8, close: 62.2 },
+      { date: "2026/08/11", open: 62.06, high: 62.53, low: 61.88, close: 62.42 },
+      { date: "2026/08/12", open: 62.34, high: 62.45, low: 62.09, close: 62.13 },
+      { date: "2026/08/13", open: 62.09, high: 62.28, low: 61.56, close: 61.76 },
+      { date: "2026/08/14", open: 61.82, high: 61.87, low: 61.3, close: 61.45 },
+      { date: "2026/08/17", open: 61.48, high: 61.62, low: 60.97, close: 61.1 },
+      { date: "2026/08/18", open: 61.14, high: 61.36, low: 60.94, close: 61.3 },
     ],
     accent: "#2d8c73",
   },
@@ -83,6 +117,18 @@ const DEFAULT_ASSETS: Asset[] = [
       { paymentDate: "2025/12/12", amount: 0.4 },
       { paymentDate: "2025/09/11", amount: 0.4 },
     ],
+    candles: [
+      { date: "2026/08/05", open: 32.608, high: 32.749, low: 32.527, close: 32.675 },
+      { date: "2026/08/06", open: 32.613, high: 32.824, low: 32.566, close: 32.712 },
+      { date: "2026/08/07", open: 32.652, high: 32.712, low: 32.564, close: 32.641 },
+      { date: "2026/08/10", open: 32.676, high: 32.78, low: 32.561, close: 32.752 },
+      { date: "2026/08/11", open: 32.732, high: 32.804, low: 32.674, close: 32.706 },
+      { date: "2026/08/12", open: 32.771, high: 32.844, low: 32.68, close: 32.81 },
+      { date: "2026/08/13", open: 32.798, high: 32.983, low: 32.723, close: 32.978 },
+      { date: "2026/08/14", open: 32.949, high: 33.058, low: 32.908, close: 32.983 },
+      { date: "2026/08/17", open: 33.01, high: 33.09, low: 32.766, close: 32.84 },
+      { date: "2026/08/18", open: 32.849, high: 32.865, low: 32.789, close: 32.81 },
+    ],
     accent: "#d4853d",
   },
   {
@@ -99,6 +145,18 @@ const DEFAULT_ASSETS: Asset[] = [
       { paymentDate: "2026/01/13", amount: 0.28 },
       { paymentDate: "2025/10/15", amount: 0.3 },
     ],
+    candles: [
+      { date: "2026/08/05", open: 27.622, high: 27.727, low: 27.612, close: 27.678 },
+      { date: "2026/08/06", open: 27.739, high: 27.791, low: 27.656, close: 27.73 },
+      { date: "2026/08/07", open: 27.693, high: 27.833, low: 27.67, close: 27.806 },
+      { date: "2026/08/10", open: 27.746, high: 27.885, low: 27.652, close: 27.835 },
+      { date: "2026/08/11", open: 27.863, high: 27.877, low: 27.765, close: 27.819 },
+      { date: "2026/08/12", open: 27.827, high: 27.854, low: 27.645, close: 27.666 },
+      { date: "2026/08/13", open: 27.608, high: 27.839, low: 27.565, close: 27.812 },
+      { date: "2026/08/14", open: 27.856, high: 27.859, low: 27.844, close: 27.853 },
+      { date: "2026/08/17", open: 27.809, high: 27.865, low: 27.709, close: 27.76 },
+      { date: "2026/08/18", open: 27.726, high: 27.739, low: 27.477, close: 27.49 },
+    ],
     accent: "#c85b68",
   },
 ];
@@ -111,6 +169,18 @@ const SUGGESTED_ASSETS: Asset[] = [
     price: 102.85,
     previousPrice: 103.3,
     yieldRate: 2.5,
+    candles: [
+      { date: "2026/08/05", open: 102.6, high: 102.95, low: 102.4, close: 102.49 },
+      { date: "2026/08/06", open: 102.72, high: 103.03, low: 102.04, close: 102.05 },
+      { date: "2026/08/07", open: 101.83, high: 102.34, low: 101.74, close: 102.29 },
+      { date: "2026/08/10", open: 102.15, high: 102.77, low: 101.79, close: 102.42 },
+      { date: "2026/08/11", open: 102.65, high: 102.96, low: 102.35, close: 102.96 },
+      { date: "2026/08/12", open: 102.74, high: 103.52, low: 102.62, close: 103.19 },
+      { date: "2026/08/13", open: 103.33, high: 103.57, low: 102.97, close: 103.09 },
+      { date: "2026/08/14", open: 102.89, high: 103.14, low: 102.83, close: 103.11 },
+      { date: "2026/08/17", open: 103.17, high: 103.61, low: 102.91, close: 103.3 },
+      { date: "2026/08/18", open: 103.34, high: 103.48, low: 102.66, close: 102.85 },
+    ],
     accent: "#4377bd",
   },
   {
@@ -120,6 +190,18 @@ const SUGGESTED_ASSETS: Asset[] = [
     price: 235.35,
     previousPrice: 236.55,
     yieldRate: 2.6,
+    candles: [
+      { date: "2026/08/05", open: 239.36, high: 239.37, low: 238.63, close: 239.26 },
+      { date: "2026/08/06", open: 239.47, high: 239.98, low: 238.13, close: 238.73 },
+      { date: "2026/08/07", open: 238.72, high: 239.65, low: 238.4, close: 239.01 },
+      { date: "2026/08/10", open: 238.81, high: 239.15, low: 237.88, close: 238.39 },
+      { date: "2026/08/11", open: 238.93, high: 239.15, low: 238.36, close: 238.42 },
+      { date: "2026/08/12", open: 237.99, high: 238.68, low: 237.09, close: 237.8 },
+      { date: "2026/08/13", open: 238.18, high: 238.94, low: 236.7, close: 236.73 },
+      { date: "2026/08/14", open: 237.04, high: 237.43, low: 235.12, close: 235.61 },
+      { date: "2026/08/17", open: 236.02, high: 236.98, low: 235.71, close: 236.55 },
+      { date: "2026/08/18", open: 236.68, high: 237.39, low: 235.13, close: 235.35 },
+    ],
     accent: "#7b62b3",
   },
   {
@@ -129,6 +211,18 @@ const SUGGESTED_ASSETS: Asset[] = [
     price: 29.74,
     previousPrice: 29.6,
     yieldRate: 10,
+    candles: [
+      { date: "2026/08/05", open: 29.821, high: 29.868, low: 29.789, close: 29.794 },
+      { date: "2026/08/06", open: 29.839, high: 30.004, low: 29.769, close: 29.902 },
+      { date: "2026/08/07", open: 29.852, high: 29.924, low: 29.775, close: 29.797 },
+      { date: "2026/08/10", open: 29.795, high: 29.896, low: 29.578, close: 29.641 },
+      { date: "2026/08/11", open: 29.656, high: 29.751, low: 29.499, close: 29.533 },
+      { date: "2026/08/12", open: 29.506, high: 29.638, low: 29.463, close: 29.585 },
+      { date: "2026/08/13", open: 29.587, high: 29.64, low: 29.514, close: 29.533 },
+      { date: "2026/08/14", open: 29.505, high: 29.642, low: 29.434, close: 29.575 },
+      { date: "2026/08/17", open: 29.509, high: 29.634, low: 29.405, close: 29.6 },
+      { date: "2026/08/18", open: 29.666, high: 29.815, low: 29.656, close: 29.74 },
+    ],
     accent: "#3997a3",
   },
   {
@@ -138,6 +232,18 @@ const SUGGESTED_ASSETS: Asset[] = [
     price: 28.59,
     previousPrice: 28.94,
     yieldRate: 6,
+    candles: [
+      { date: "2026/08/05", open: 29.136, high: 29.184, low: 29.1, close: 29.174 },
+      { date: "2026/08/06", open: 29.202, high: 29.299, low: 28.951, close: 29.053 },
+      { date: "2026/08/07", open: 29.019, high: 29.106, low: 28.989, close: 29.07 },
+      { date: "2026/08/10", open: 29.112, high: 29.172, low: 28.876, close: 28.949 },
+      { date: "2026/08/11", open: 28.948, high: 29.003, low: 28.76, close: 28.784 },
+      { date: "2026/08/12", open: 28.842, high: 28.869, low: 28.596, close: 28.67 },
+      { date: "2026/08/13", open: 28.672, high: 28.759, low: 28.574, close: 28.714 },
+      { date: "2026/08/14", open: 28.702, high: 28.94, low: 28.629, close: 28.882 },
+      { date: "2026/08/17", open: 28.916, high: 29.039, low: 28.847, close: 28.94 },
+      { date: "2026/08/18", open: 28.876, high: 28.932, low: 28.52, close: 28.59 },
+    ],
     accent: "#ba6a9c",
   },
   {
@@ -147,6 +253,18 @@ const SUGGESTED_ASSETS: Asset[] = [
     price: 12.4,
     previousPrice: 12.45,
     yieldRate: 8,
+    candles: [
+      { date: "2026/08/05", open: 12.558, high: 12.571, low: 12.551, close: 12.558 },
+      { date: "2026/08/06", open: 12.54, high: 12.581, low: 12.493, close: 12.496 },
+      { date: "2026/08/07", open: 12.524, high: 12.562, low: 12.406, close: 12.429 },
+      { date: "2026/08/10", open: 12.437, high: 12.46, low: 12.409, close: 12.455 },
+      { date: "2026/08/11", open: 12.434, high: 12.464, low: 12.368, close: 12.399 },
+      { date: "2026/08/12", open: 12.403, high: 12.435, low: 12.382, close: 12.433 },
+      { date: "2026/08/13", open: 12.409, high: 12.495, low: 12.396, close: 12.473 },
+      { date: "2026/08/14", open: 12.447, high: 12.51, low: 12.413, close: 12.467 },
+      { date: "2026/08/17", open: 12.481, high: 12.483, low: 12.424, close: 12.45 },
+      { date: "2026/08/18", open: 12.446, high: 12.477, low: 12.399, close: 12.4 },
+    ],
     accent: "#a37b3b",
   },
   {
@@ -156,6 +274,18 @@ const SUGGESTED_ASSETS: Asset[] = [
     price: 26.41,
     previousPrice: 26.66,
     yieldRate: 4.5,
+    candles: [
+      { date: "2026/08/05", open: 26.881, high: 26.982, low: 26.792, close: 26.89 },
+      { date: "2026/08/06", open: 26.86, high: 26.878, low: 26.701, close: 26.759 },
+      { date: "2026/08/07", open: 26.762, high: 26.785, low: 26.692, close: 26.772 },
+      { date: "2026/08/10", open: 26.711, high: 26.801, low: 26.521, close: 26.616 },
+      { date: "2026/08/11", open: 26.654, high: 26.758, low: 26.65, close: 26.736 },
+      { date: "2026/08/12", open: 26.752, high: 26.753, low: 26.594, close: 26.661 },
+      { date: "2026/08/13", open: 26.667, high: 26.743, low: 26.504, close: 26.515 },
+      { date: "2026/08/14", open: 26.516, high: 26.656, low: 26.453, close: 26.622 },
+      { date: "2026/08/17", open: 26.565, high: 26.742, low: 26.516, close: 26.66 },
+      { date: "2026/08/18", open: 26.707, high: 26.739, low: 26.353, close: 26.41 },
+    ],
     accent: "#6f8796",
   },
 ];
@@ -200,6 +330,10 @@ function parseNumericInput(value: string) {
 
 function getRecentDividends(asset: Asset) {
   return (asset.dividends ?? []).slice(0, 4);
+}
+
+function getRecentCandles(asset: Asset) {
+  return (asset.candles ?? []).slice(-10);
 }
 
 function getDividendFrequency(asset: Asset) {
@@ -264,12 +398,69 @@ function enrichStoredAsset(asset: Asset) {
   const dividends = asset.dividends?.length
     ? asset.dividends
     : (catalogAsset?.dividends ?? []);
+  const candles = asset.candles?.length
+    ? asset.candles
+    : (catalogAsset?.candles ?? []);
   return {
     ...asset,
     dividends,
+    candles,
     yieldMode:
       asset.yieldMode ?? (dividends.length > 0 ? "history" : undefined),
   } satisfies Asset;
+}
+
+function CandlestickChart({ asset }: { asset: Asset }) {
+  const candles = getRecentCandles(asset);
+  if (candles.length === 0) return null;
+
+  const barWidth = 6;
+  const gap = 4;
+  const width = candles.length * (barWidth + gap) - gap;
+  const height = 32;
+  const padding = 3;
+  const high = Math.max(...candles.map((candle) => candle.high));
+  const low = Math.min(...candles.map((candle) => candle.low));
+  const span = Math.max(high - low, 0.0001);
+  const scaleY = (value: number) =>
+    padding + ((high - value) / span) * (height - padding * 2);
+
+  return (
+    <svg
+      className="candlestick-chart"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={`${asset.code} 近 ${candles.length} 個交易日走勢，開盤 ${candles[0].open} 收盤 ${candles[candles.length - 1].close}`}
+    >
+      {candles.map((candle, index) => {
+        const isUp = candle.close >= candle.open;
+        const x = index * (barWidth + gap);
+        const bodyTop = scaleY(Math.max(candle.open, candle.close));
+        const bodyBottom = scaleY(Math.min(candle.open, candle.close));
+        return (
+          <g
+            key={candle.date}
+            className={isUp ? "is-up" : "is-down"}
+            title={`${candle.date}｜開 ${candle.open}／高 ${candle.high}／低 ${candle.low}／收 ${candle.close}`}
+          >
+            <line
+              x1={x + barWidth / 2}
+              x2={x + barWidth / 2}
+              y1={scaleY(candle.high)}
+              y2={scaleY(candle.low)}
+            />
+            <rect
+              x={x}
+              y={bodyTop}
+              width={barWidth}
+              height={Math.max(bodyBottom - bodyTop, 1)}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
 }
 
 export default function Home() {
@@ -322,6 +513,7 @@ export default function Home() {
             dividends: quote.dividends?.length
               ? quote.dividends
               : asset.dividends,
+            candles: quote.candles?.length ? quote.candles : asset.candles,
             yieldMode:
               asset.yieldMode ??
               (quote.dividends?.length ? "history" : undefined),
@@ -534,6 +726,7 @@ export default function Home() {
         dividends: quote?.dividends?.length
           ? quote.dividends
           : asset.dividends,
+        candles: quote?.candles?.length ? quote.candles : asset.candles,
         yieldMode:
           asset.yieldMode ??
           (quote?.dividends?.length ? "history" : undefined),
@@ -585,6 +778,7 @@ export default function Home() {
       yieldRate,
       yieldMode: "manual",
       dividends: [],
+      candles: [],
       accent: ACCENT_COLORS[assets.length % ACCENT_COLORS.length],
     });
     if (!assets.some((asset) => asset.code === code)) {
@@ -806,6 +1000,7 @@ export default function Home() {
                     {priceChange >= 0 ? "+" : ""}
                     {priceChange.toFixed(2)}
                   </small>
+                  <CandlestickChart asset={asset} />
                 </label>
                 <div className="row-metric">
                   <span className="mobile-label">建議股數</span>

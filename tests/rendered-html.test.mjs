@@ -113,6 +113,32 @@ test("monthly dividend cash flow forecast is internally consistent", async () =>
   );
 });
 
+test("real-time price cell renders a 10-day candlestick chart", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  const charts = [
+    ...html.matchAll(/<svg class="candlestick-chart"[\s\S]*?<\/svg>/g),
+  ];
+  assert.equal(charts.length, 4, "四檔預設標的應各有一組K線圖");
+
+  for (const [chartHtml] of charts) {
+    const candles = [
+      ...chartHtml.matchAll(/<g class="is-(?:up|down)" title="([^"]+)"/g),
+    ];
+    assert.equal(candles.length, 10, "每組K線圖應顯示最近 10 個交易日");
+    for (const [, title] of candles) {
+      // 迴歸測試：SVG 內的 <title> 元素在這個框架的 SSR 下會被清空，
+      // 提示文字必須改放在 <g title="..."> 屬性上才會真的送到瀏覽器。
+      assert.match(
+        title,
+        /^\d{4}\/\d{2}\/\d{2}｜開 [\d.]+／高 [\d.]+／低 [\d.]+／收 [\d.]+$/,
+        `K棒提示文字格式不正確：${title}`,
+      );
+    }
+  }
+});
+
 test("removes all starter-only preview code", async () => {
   const [page, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

@@ -98,9 +98,108 @@ async function fetchDividends(target) {
   return dividends;
 }
 
-const [quoteResults, dividendResults] = await Promise.all([
+const ROC_DATE = /^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/;
+
+function rocToSlashDate(rocDate) {
+  const match = ROC_DATE.exec(rocDate || "");
+  if (!match) return undefined;
+  const [, rocYear, month, day] = match;
+  const year = Number(rocYear) + 1911;
+  return `${year}/${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+}
+
+function toCandleRows(rows) {
+  return rows
+    .map((row) => ({
+      date: rocToSlashDate(row[0]),
+      open: toNumber(row[3]),
+      high: toNumber(row[4]),
+      low: toNumber(row[5]),
+      close: toNumber(row[6]),
+    }))
+    .filter(
+      (candle) =>
+        candle.date &&
+        [candle.open, candle.high, candle.low, candle.close].every(Number.isFinite),
+    );
+}
+
+// 上市（TSE）逐月日成交行情，長期穩定的公開端點。
+async function fetchTseMonthCandles(code, month) {
+  const date = `${month.getFullYear()}${String(month.getMonth() + 1).padStart(2, "0")}01`;
+  const url = new URL("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY");
+  url.searchParams.set("date", date);
+  url.searchParams.set("stockNo", code);
+  url.searchParams.set("response", "json");
+
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json,text/plain,*/*",
+      "user-agent": "Mozilla/5.0 ETF-allocator-market-refresh",
+    },
+  });
+  if (!response.ok) throw new Error(`${code}: STOCK_DAY HTTP ${response.status}`);
+  const payload = await response.json();
+  if (payload.stat !== "OK" || !Array.isArray(payload.data)) return [];
+  return toCandleRows(payload.data);
+}
+
+// 上櫃（OTC/TPEx）逐月日成交行情。TPEx 近年重整過站台，若此端點失效，
+// 之後仍會安全退回上一次成功抓到的 K 線（見下方 Promise.allSettled 備援）。
+async function fetchOtcMonthCandles(code, month) {
+  const rocMonth = `${month.getFullYear() - 1911}/${String(month.getMonth() + 1).padStart(2, "0")}`;
+  const url = new URL(
+    "https://www.tpex.org.tw/web/stock/aftertrading/daily_trading_info/st43_result.php",
+  );
+  url.searchParams.set("l", "zh-tw");
+  url.searchParams.set("d", rocMonth);
+  url.searchParams.set("stkno", code);
+
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json,text/plain,*/*",
+      "user-agent": "Mozilla/5.0 ETF-allocator-market-refresh",
+    },
+  });
+  if (!response.ok) throw new Error(`${code}: TPEx HTTP ${response.status}`);
+  const payload = await response.json();
+  const rows = payload.aaData ?? payload.data;
+  if (!Array.isArray(rows)) return [];
+  return toCandleRows(rows);
+}
+
+async function fetchCandles(target) {
+  const fetchMonth =
+    target.market === "otc" ? fetchOtcMonthCandles : fetchTseMonthCandles;
+  const now = new Date();
+  let combined = await fetchMonth(target.code, now);
+
+  if (combined.length < 10) {
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const previous = await fetchMonth(target.code, previousMonth);
+    combined = [...previous, ...combined];
+  }
+
+  const last10 = combined
+    .filter(
+      (candle, index, all) =>
+        all.findIndex((item) => item.date === candle.date) === index,
+    )
+    .sort(
+      (a, b) =>
+        Date.parse(a.date.replaceAll("/", "-")) -
+        Date.parse(b.date.replaceAll("/", "-")),
+    )
+    .slice(-10);
+
+  if (last10.length === 0) throw new Error(`${target.code}: no candle history`);
+  return last10;
+}
+
+const [quoteResults, dividendResults, candleResults] = await Promise.all([
   Promise.allSettled(targets.map(fetchQuote)),
   Promise.allSettled(targets.map(fetchDividends)),
+  Promise.allSettled(targets.map(fetchCandles)),
 ]);
 
 const quotes = quoteResults.map((result, index) => {
@@ -127,7 +226,18 @@ const quotes = quoteResults.map((result, index) => {
     );
   }
 
-  return { ...quote, dividends };
+  const candleResult = candleResults[index];
+  const candles =
+    candleResult.status === "fulfilled"
+      ? candleResult.value
+      : (fallback?.candles ?? []);
+  if (candleResult.status === "rejected") {
+    console.warn(
+      `使用 ${targets[index].code} 的備援K線：${candleResult.reason.message}`,
+    );
+  }
+
+  return { ...quote, dividends, candles };
 });
 
 const validDates = quotes
