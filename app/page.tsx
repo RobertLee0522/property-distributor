@@ -410,8 +410,14 @@ function enrichStoredAsset(asset: Asset) {
   } satisfies Asset;
 }
 
-function getAveragePrice(candle: Candle) {
-  return (candle.open + candle.high + candle.low + candle.close) / 4;
+// 累計平均收盤價：第 1 天＝當天收盤，第 2 天＝前兩天收盤平均，以此類推，
+// 呈現「平均成本」隨時間收斂的走勢，而不是每天各自的高低開收平均。
+function getCumulativeAverageCloses(candles: Candle[]) {
+  let runningSum = 0;
+  return candles.map((candle, index) => {
+    runningSum += candle.close;
+    return runningSum / (index + 1);
+  });
 }
 
 function CandlestickChart({ asset }: { asset: Asset }) {
@@ -458,8 +464,9 @@ function CandlestickChart({ asset }: { asset: Asset }) {
     setActiveIndex((current) => (current === index ? null : index));
   };
 
+  const cumulativeAverages = getCumulativeAverageCloses(candles);
   const averagePoints = candles
-    .map((candle, index) => `${xFor(index)},${scaleY(getAveragePrice(candle))}`)
+    .map((_, index) => `${xFor(index)},${scaleY(cumulativeAverages[index])}`)
     .join(" ");
 
   const active = activeIndex !== null ? candles[activeIndex] : null;

@@ -144,39 +144,13 @@ async function fetchTseMonthCandles(code, month) {
   return toCandleRows(payload.data);
 }
 
-// 上櫃（OTC/TPEx）逐月日成交行情。TPEx 近年重整過站台，若此端點失效，
-// 之後仍會安全退回上一次成功抓到的 K 線（見下方 Promise.allSettled 備援）。
-async function fetchOtcMonthCandles(code, month) {
-  const rocMonth = `${month.getFullYear() - 1911}/${String(month.getMonth() + 1).padStart(2, "0")}`;
-  const url = new URL(
-    "https://www.tpex.org.tw/web/stock/aftertrading/daily_trading_info/st43_result.php",
-  );
-  url.searchParams.set("l", "zh-tw");
-  url.searchParams.set("d", rocMonth);
-  url.searchParams.set("stkno", code);
-
-  const response = await fetch(url, {
-    headers: {
-      accept: "application/json,text/plain,*/*",
-      "user-agent": "Mozilla/5.0 ETF-allocator-market-refresh",
-    },
-  });
-  if (!response.ok) throw new Error(`${code}: TPEx HTTP ${response.status}`);
-  const payload = await response.json();
-  const rows = payload.aaData ?? payload.data;
-  if (!Array.isArray(rows)) return [];
-  return toCandleRows(rows);
-}
-
-async function fetchCandles(target) {
-  const fetchMonth =
-    target.market === "otc" ? fetchOtcMonthCandles : fetchTseMonthCandles;
+async function fetchTseCandles(code) {
   const now = new Date();
-  let combined = await fetchMonth(target.code, now);
+  let combined = await fetchTseMonthCandles(code, now);
 
   if (combined.length < 10) {
     const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const previous = await fetchMonth(target.code, previousMonth);
+    const previous = await fetchTseMonthCandles(code, previousMonth);
     combined = [...previous, ...combined];
   }
 
@@ -192,8 +166,84 @@ async function fetchCandles(target) {
     )
     .slice(-10);
 
-  if (last10.length === 0) throw new Error(`${target.code}: no candle history`);
+  if (last10.length === 0) throw new Error(`${code}: no candle history`);
   return last10;
+}
+
+// 上櫃（OTC/TPEx）沒有像 TWSE STOCK_DAY 那種「一次要一整個月、單一標的」的
+// 端點：TPEx 目前可用的是「單一交易日、全市場」快照
+// （/www/zh-tw/afterTrading/dailyQuotes?date=YYYY/MM/DD&response=json），
+// 一次回傳全部約 890 檔上櫃股票／ETF 當天的收盤資訊。所以只能逐日往回抓、
+// 從裡面挑出我們要的代號；同一天的快照在同一次執行中用 otcSnapshotCache
+// 快取起來，兩檔美債 ETF（00687B、00679B）共用，不必各抓一次。
+// 欄位順序（上櫃股票行情表）：
+// 0 代號 1 名稱 2 收盤 3 漲跌 4 開盤 5 最高 6 最低 7 均價 8 成交股數 ...
+const otcSnapshotCache = new Map();
+
+async function fetchOtcSnapshot(dateStr) {
+  if (otcSnapshotCache.has(dateStr)) return otcSnapshotCache.get(dateStr);
+
+  const promise = (async () => {
+    const url = `https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes?date=${dateStr}&response=json`;
+    const response = await fetch(url, {
+      headers: {
+        accept: "application/json,text/plain,*/*",
+        "user-agent": "Mozilla/5.0 ETF-allocator-market-refresh",
+      },
+    });
+    if (!response.ok) throw new Error(`TPEx dailyQuotes HTTP ${response.status}`);
+    const payload = await response.json();
+    const rows = payload.tables?.[0]?.data;
+    const byCode = new Map();
+    if (Array.isArray(rows)) {
+      for (const row of rows) byCode.set(row[0], row);
+    }
+    return byCode;
+  })();
+
+  otcSnapshotCache.set(dateStr, promise);
+  return promise;
+}
+
+async function fetchOtcCandles(code) {
+  const candles = [];
+  const cursor = new Date();
+  cursor.setDate(cursor.getDate() - 1); // 從昨天開始，避開還沒收盤定案的當天資料
+
+  for (let daysBack = 0; daysBack < 21 && candles.length < 10; daysBack++) {
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) {
+      const dateStr = `${cursor.getFullYear()}/${String(cursor.getMonth() + 1).padStart(2, "0")}/${String(cursor.getDate()).padStart(2, "0")}`;
+      try {
+        const snapshot = await fetchOtcSnapshot(dateStr);
+        const row = snapshot.get(code);
+        if (row) {
+          const candle = {
+            date: dateStr,
+            open: toNumber(row[4]),
+            high: toNumber(row[5]),
+            low: toNumber(row[6]),
+            close: toNumber(row[2]),
+          };
+          if ([candle.open, candle.high, candle.low, candle.close].every(Number.isFinite)) {
+            candles.unshift(candle);
+          }
+        }
+      } catch {
+        // 單一天失敗（例如假日、暫時性錯誤）就跳過，繼續往前找。
+      }
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  if (candles.length === 0) throw new Error(`${code}: no candle history`);
+  return candles.slice(-10);
+}
+
+async function fetchCandles(target) {
+  return target.market === "otc"
+    ? fetchOtcCandles(target.code)
+    : fetchTseCandles(target.code);
 }
 
 const [quoteResults, dividendResults, candleResults] = await Promise.all([
