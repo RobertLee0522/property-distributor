@@ -147,6 +147,57 @@ test("real-time price cell renders a 10-day candlestick chart", async () => {
   }
 });
 
+test("candlestick average line is a cumulative average of closing prices", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  const chartHtml = html.match(/<svg class="candlestick-chart"[\s\S]*?<\/svg>/)[0];
+  const candleMatches = [
+    ...chartHtml.matchAll(
+      /title="\d{4}\/\d{2}\/\d{2}｜開 ([\d.]+)／高 ([\d.]+)／低 ([\d.]+)／收 ([\d.]+)"/g,
+    ),
+  ];
+  assert.equal(candleMatches.length, 10);
+  const candles = candleMatches.map(([, open, high, low, close]) => ({
+    open: Number(open),
+    high: Number(high),
+    low: Number(low),
+    close: Number(close),
+  }));
+
+  // 平均線的定義：第一天平均＝當天收盤，第二天平均＝前兩天收盤平均，
+  // 依此類推的「累計平均收盤價」，不是每天各自的開高低收平均。
+  let runningSum = 0;
+  const expectedAverages = candles.map((candle, index) => {
+    runningSum += candle.close;
+    return runningSum / (index + 1);
+  });
+
+  const high = Math.max(...candles.map((candle) => candle.high));
+  const low = Math.min(...candles.map((candle) => candle.low));
+  const span = Math.max(high - low, 0.0001);
+  const padding = 3;
+  const chartHeight = 32;
+  const scaleY = (value) =>
+    padding + ((high - value) / span) * (chartHeight - padding * 2);
+
+  const averageLine = chartHtml.match(
+    /<polyline class="candlestick-average-line"[^>]*points="([^"]+)"/,
+  );
+  const points = averageLine[1]
+    .trim()
+    .split(/\s+/)
+    .map((pair) => pair.split(",").map(Number));
+
+  points.forEach(([, y], index) => {
+    const expectedY = scaleY(expectedAverages[index]);
+    assert.ok(
+      Math.abs(y - expectedY) < 1e-6,
+      `第 ${index + 1} 天平均線應等於累計平均收盤價 ${expectedAverages[index].toFixed(3)}（座標 ${expectedY}），實際卻是 ${y}`,
+    );
+  });
+});
+
 test("removes all starter-only preview code", async () => {
   const [page, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
