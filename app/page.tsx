@@ -47,6 +47,23 @@ type AssetDraft = {
   yieldRate: string;
 };
 
+type TradeRecord = {
+  id: string;
+  assetCode: string;
+  date: string;
+  lots: number;
+  oddShares: number;
+  totalCost: number;
+};
+
+type TradeDraft = {
+  assetCode: string;
+  date: string;
+  lots: string;
+  oddShares: string;
+  totalCost: string;
+};
+
 const DEFAULT_ASSETS: Asset[] = [
   {
     code: "0056",
@@ -305,6 +322,15 @@ const ACCENT_COLORS = [
   "#6f8796",
 ];
 const PORTFOLIO_STORAGE_KEY = "peipeikan-portfolio-v1";
+const TRADE_LOG_STORAGE_KEY = "peipeikan-trade-log-v1";
+
+const EMPTY_TRADE_DRAFT: TradeDraft = {
+  assetCode: "",
+  date: "",
+  lots: "",
+  oddShares: "",
+  totalCost: "",
+};
 
 const EMPTY_DRAFT: AssetDraft = {
   code: "",
@@ -573,6 +599,10 @@ export default function Home() {
     "ready",
   );
   const [updatedAt, setUpdatedAt] = useState("2026/08/07 14:30");
+  const [tradeLog, setTradeLog] = useState<TradeRecord[]>([]);
+  const [tradeLogReady, setTradeLogReady] = useState(false);
+  const [tradeDraft, setTradeDraft] = useState<TradeDraft>(EMPTY_TRADE_DRAFT);
+  const [tradeError, setTradeError] = useState("");
   const previousAverageYield = useRef(getAverageYield(DEFAULT_ASSETS));
 
   const refreshMarket = useCallback(async (quiet = false) => {
@@ -666,6 +696,41 @@ export default function Home() {
     if (!portfolioReady) return;
     window.localStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify(assets));
   }, [assets, portfolioReady]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem(TRADE_LOG_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as TradeRecord[];
+          if (
+            Array.isArray(parsed) &&
+            parsed.every(
+              (record) =>
+                typeof record.id === "string" &&
+                typeof record.assetCode === "string" &&
+                typeof record.date === "string" &&
+                Number.isFinite(record.lots) &&
+                Number.isFinite(record.oddShares) &&
+                Number.isFinite(record.totalCost),
+            )
+          ) {
+            setTradeLog(parsed);
+          }
+        }
+      } catch {
+        window.localStorage.removeItem(TRADE_LOG_STORAGE_KEY);
+      }
+      setTradeLogReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!tradeLogReady) return;
+    window.localStorage.setItem(TRADE_LOG_STORAGE_KEY, JSON.stringify(tradeLog));
+  }, [tradeLog, tradeLogReady]);
 
   const portfolioAverageYield = useMemo(() => getAverageYield(assets), [assets]);
 
@@ -859,6 +924,42 @@ export default function Home() {
   const removeAsset = (code: string) => {
     if (assets.length <= 1) return;
     syncForAssets(assets.filter((asset) => asset.code !== code));
+  };
+
+  const updateTradeDraft = (field: keyof TradeDraft, value: string) => {
+    setTradeDraft((current) => ({ ...current, [field]: value }));
+    setTradeError("");
+  };
+
+  const addTradeRecord = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const lots = Math.max(0, Math.floor(parseNumericInput(tradeDraft.lots)));
+    const oddShares = Math.max(0, Math.floor(parseNumericInput(tradeDraft.oddShares)));
+    const totalCost = parseNumericInput(tradeDraft.totalCost);
+    const totalShares = lots * 1000 + oddShares;
+
+    if (!tradeDraft.assetCode || !tradeDraft.date || totalShares <= 0 || totalCost <= 0) {
+      setTradeError("請選擇標的、填寫日期，並輸入大於 0 的股數與總成本");
+      return;
+    }
+
+    setTradeLog((current) => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        assetCode: tradeDraft.assetCode,
+        date: tradeDraft.date,
+        lots,
+        oddShares,
+        totalCost,
+      },
+      ...current,
+    ]);
+    setTradeDraft((current) => ({ ...current, lots: "", oddShares: "", totalCost: "" }));
+    setTradeError("");
+  };
+
+  const removeTradeRecord = (id: string) => {
+    setTradeLog((current) => current.filter((record) => record.id !== id));
   };
 
   const updateDraftCode = (value: string) => {
@@ -1315,6 +1416,163 @@ export default function Home() {
             </form>
             {assetError && <p className="asset-error" role="alert">{assetError}</p>}
           </div>
+        )}
+      </section>
+
+      <section className="trade-log-card" aria-labelledby="trade-log-title">
+        <div className="section-heading">
+          <div>
+            <p className="step-label">紀錄</p>
+            <h2 id="trade-log-title">你的交易紀錄</h2>
+            <p>
+              記下實際買進的日期、張數與總成本，自動幫你算目前市值與報酬率。資料只存在你這個瀏覽器裡，不會上傳到任何地方。
+            </p>
+          </div>
+        </div>
+
+        <form className="trade-log-form" onSubmit={addTradeRecord}>
+          <label>
+            <span>標的</span>
+            <select
+              value={
+                assets.some((asset) => asset.code === tradeDraft.assetCode)
+                  ? tradeDraft.assetCode
+                  : (assets[0]?.code ?? "")
+              }
+              onChange={(event) => updateTradeDraft("assetCode", event.target.value)}
+              aria-label="交易紀錄標的"
+            >
+              {assets.map((asset) => (
+                <option key={asset.code} value={asset.code}>
+                  {asset.code} {asset.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>買進日期</span>
+            <input
+              type="date"
+              value={tradeDraft.date}
+              onChange={(event) => updateTradeDraft("date", event.target.value)}
+              aria-label="交易紀錄買進日期"
+            />
+          </label>
+          <label>
+            <span>張</span>
+            <input
+              inputMode="numeric"
+              value={tradeDraft.lots}
+              onChange={(event) => updateTradeDraft("lots", event.target.value)}
+              placeholder="0"
+              aria-label="交易紀錄張數"
+            />
+          </label>
+          <label>
+            <span>股</span>
+            <input
+              inputMode="numeric"
+              value={tradeDraft.oddShares}
+              onChange={(event) => updateTradeDraft("oddShares", event.target.value)}
+              placeholder="0"
+              aria-label="交易紀錄股數"
+            />
+          </label>
+          <label className="trade-log-cost-input">
+            <span>總成本</span>
+            <div className="currency-input">
+              <b>NT$</b>
+              <input
+                inputMode="numeric"
+                value={tradeDraft.totalCost}
+                onChange={(event) => updateTradeDraft("totalCost", event.target.value)}
+                placeholder="0"
+                aria-label="交易紀錄總成本"
+              />
+            </div>
+          </label>
+          <button className="submit-asset-button" type="submit">
+            新增紀錄
+          </button>
+        </form>
+        {tradeError && <p className="asset-error" role="alert">{tradeError}</p>}
+
+        {tradeLog.length > 0 ? (
+          <div className="trade-log-list">
+            <div className="trade-log-header" aria-hidden="true">
+              <span>標的</span>
+              <span>買進日期</span>
+              <span>股數</span>
+              <span>總成本</span>
+              <span>目前市值</span>
+              <span>報酬率</span>
+            </div>
+            {tradeLog.map((record) => {
+              const asset =
+                assets.find((item) => item.code === record.assetCode) ??
+                ASSET_CATALOG.find((item) => item.code === record.assetCode);
+              const totalShares = record.lots * 1000 + record.oddShares;
+              const currentValue = asset ? totalShares * asset.price : null;
+              const returnPct =
+                currentValue != null && record.totalCost > 0
+                  ? ((currentValue - record.totalCost) / record.totalCost) * 100
+                  : null;
+
+              return (
+                <article className="trade-log-row" key={record.id}>
+                  <div className="trade-log-asset asset-name">
+                    <span
+                      className="asset-swatch"
+                      style={{ background: asset?.accent ?? "#c8c9c1" }}
+                    />
+                    <div>
+                      <strong>{record.assetCode}</strong>
+                      <small>{asset?.name ?? "已移除的標的"}</small>
+                    </div>
+                    <button
+                      className="remove-asset-button"
+                      type="button"
+                      onClick={() => removeTradeRecord(record.id)}
+                      aria-label={`刪除 ${record.date} 的 ${record.assetCode} 交易紀錄`}
+                    >
+                      刪除
+                    </button>
+                  </div>
+                  <div className="row-metric">
+                    <span className="mobile-label">買進日期</span>
+                    <strong>{record.date}</strong>
+                  </div>
+                  <div className="row-metric">
+                    <span className="mobile-label">股數</span>
+                    <strong>
+                      {record.lots > 0 && `${number.format(record.lots)} 張`}
+                      {record.lots > 0 && record.oddShares > 0 && " "}
+                      {record.oddShares > 0 && `${number.format(record.oddShares)} 股`}
+                      {totalShares === 0 && "0 股"}
+                    </strong>
+                  </div>
+                  <div className="row-metric">
+                    <span className="mobile-label">總成本</span>
+                    <strong>{money.format(record.totalCost)}</strong>
+                  </div>
+                  <div className="row-metric">
+                    <span className="mobile-label">目前市值</span>
+                    <strong>{currentValue != null ? money.format(currentValue) : "—"}</strong>
+                  </div>
+                  <div className="row-metric">
+                    <span className="mobile-label">報酬率</span>
+                    <strong className={returnPct != null && returnPct >= 0 ? "up" : "down"}>
+                      {returnPct != null
+                        ? `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(1)}%`
+                        : "—"}
+                    </strong>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="trade-log-empty">還沒有交易紀錄，新增第一筆看看目前報酬率。</p>
         )}
       </section>
 

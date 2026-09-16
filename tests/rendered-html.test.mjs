@@ -223,6 +223,31 @@ test("candlestick average line is a cumulative average of closing prices", async
   });
 });
 
+test("trade log lets users record purchases and starts empty", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  assert.match(html, /你的交易紀錄/);
+  assert.match(html, /aria-label="交易紀錄標的"/);
+  assert.match(html, /aria-label="交易紀錄買進日期"/);
+  assert.match(html, /aria-label="交易紀錄張數"/);
+  assert.match(html, /aria-label="交易紀錄股數"/);
+  assert.match(html, /aria-label="交易紀錄總成本"/);
+
+  // 表單裡的標的選單應該包含目前投資組合裡的每一檔，才能選來記錄。
+  for (const code of ["0056", "00713", "00878", "00687B"]) {
+    assert.match(
+      html,
+      new RegExp(`<option value="${code}"`),
+      `交易紀錄標的選單應包含 ${code}`,
+    );
+  }
+
+  // 尚未新增任何紀錄前顯示空狀態提示，而不是空的表格。
+  assert.match(html, /還沒有交易紀錄，新增第一筆看看目前報酬率。/);
+  assert.doesNotMatch(html, /<article class="trade-log-row"/);
+});
+
 test("removes all starter-only preview code", async () => {
   const [page, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
