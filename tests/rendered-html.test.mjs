@@ -248,6 +248,23 @@ test("trade log lets users record purchases and starts empty", async () => {
   assert.doesNotMatch(html, /<article class="trade-log-row"/);
 });
 
+test("cloud sync panel explains the jsonbin.io flow and warns about the Master Key's scope", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  assert.match(html, /雲端同步（選用）/);
+  assert.match(html, /aria-label="雲端同步 Master Key"/);
+  assert.match(html, /aria-label="雲端同步 Bin ID"/);
+  assert.match(html, /type="password"[^>]*aria-label="雲端同步 Master Key"/);
+
+  // Master Key 是帳號層級的權限，不是只綁定單一 Bin，這個警語必須留著，
+  // 不能被之後的重構誤刪。
+  assert.match(html, /這組 Master Key 能存取你 jsonbin\.io 帳號底下所有的雲端空間/);
+
+  assert.match(html, />上傳</);
+  assert.match(html, />下載</);
+});
+
 test("removes all starter-only preview code", async () => {
   const [page, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

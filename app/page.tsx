@@ -323,6 +323,8 @@ const ACCENT_COLORS = [
 ];
 const PORTFOLIO_STORAGE_KEY = "peipeikan-portfolio-v1";
 const TRADE_LOG_STORAGE_KEY = "peipeikan-trade-log-v1";
+const SYNC_STORAGE_KEY = "peipeikan-sync-v1";
+const JSONBIN_BASE_URL = "https://api.jsonbin.io/v3/b";
 
 const EMPTY_TRADE_DRAFT: TradeDraft = {
   assetCode: "",
@@ -353,6 +355,25 @@ const MONTH_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}月`)
 function parseNumericInput(value: string) {
   const parsed = Number(value.replace(/,/g, ""));
   return Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
+}
+
+function isValidTradeRecordArray(value: unknown): value is TradeRecord[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item) => {
+      const record = item as Partial<TradeRecord> | null;
+      return (
+        record != null &&
+        typeof record === "object" &&
+        typeof record.id === "string" &&
+        typeof record.assetCode === "string" &&
+        typeof record.date === "string" &&
+        Number.isFinite(record.lots) &&
+        Number.isFinite(record.oddShares) &&
+        Number.isFinite(record.totalCost)
+      );
+    })
+  );
 }
 
 function getRecentDividends(asset: Asset) {
@@ -603,6 +624,15 @@ export default function Home() {
   const [tradeLogReady, setTradeLogReady] = useState(false);
   const [tradeDraft, setTradeDraft] = useState<TradeDraft>(EMPTY_TRADE_DRAFT);
   const [tradeError, setTradeError] = useState("");
+  const [syncKey, setSyncKey] = useState("");
+  const [syncBinId, setSyncBinId] = useState("");
+  const [syncReady, setSyncReady] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "uploading" | "downloading">(
+    "idle",
+  );
+  const [syncMessage, setSyncMessage] = useState<
+    { type: "success" | "error"; text: string } | null
+  >(null);
   const previousAverageYield = useRef(getAverageYield(DEFAULT_ASSETS));
 
   const refreshMarket = useCallback(async (quiet = false) => {
@@ -702,19 +732,8 @@ export default function Home() {
       try {
         const stored = window.localStorage.getItem(TRADE_LOG_STORAGE_KEY);
         if (stored) {
-          const parsed = JSON.parse(stored) as TradeRecord[];
-          if (
-            Array.isArray(parsed) &&
-            parsed.every(
-              (record) =>
-                typeof record.id === "string" &&
-                typeof record.assetCode === "string" &&
-                typeof record.date === "string" &&
-                Number.isFinite(record.lots) &&
-                Number.isFinite(record.oddShares) &&
-                Number.isFinite(record.totalCost),
-            )
-          ) {
+          const parsed = JSON.parse(stored) as unknown;
+          if (isValidTradeRecordArray(parsed)) {
             setTradeLog(parsed);
           }
         }
@@ -731,6 +750,32 @@ export default function Home() {
     if (!tradeLogReady) return;
     window.localStorage.setItem(TRADE_LOG_STORAGE_KEY, JSON.stringify(tradeLog));
   }, [tradeLog, tradeLogReady]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem(SYNC_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as { key?: string; binId?: string };
+          if (typeof parsed.key === "string") setSyncKey(parsed.key);
+          if (typeof parsed.binId === "string") setSyncBinId(parsed.binId);
+        }
+      } catch {
+        window.localStorage.removeItem(SYNC_STORAGE_KEY);
+      }
+      setSyncReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!syncReady) return;
+    window.localStorage.setItem(
+      SYNC_STORAGE_KEY,
+      JSON.stringify({ key: syncKey, binId: syncBinId }),
+    );
+  }, [syncKey, syncBinId, syncReady]);
 
   const portfolioAverageYield = useMemo(() => getAverageYield(assets), [assets]);
 
@@ -960,6 +1005,114 @@ export default function Home() {
 
   const removeTradeRecord = (id: string) => {
     setTradeLog((current) => current.filter((record) => record.id !== id));
+  };
+
+  const uploadTradeLog = async () => {
+    const key = syncKey.trim();
+    const binId = syncBinId.trim();
+    if (!key) {
+      setSyncMessage({ type: "error", text: "請先貼上 Master Key" });
+      return;
+    }
+
+    setSyncStatus("uploading");
+    setSyncMessage(null);
+    try {
+      if (binId) {
+        const response = await fetch(`${JSONBIN_BASE_URL}/${binId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "X-Master-Key": key },
+          body: JSON.stringify(tradeLog),
+        });
+        if (!response.ok) {
+          throw new Error(
+            response.status === 401 || response.status === 403
+              ? "上傳失敗，請確認 Master Key 是否正確"
+              : response.status === 404
+                ? "上傳失敗，找不到這個 Bin ID"
+                : `上傳失敗（HTTP ${response.status}）`,
+          );
+        }
+        setSyncMessage({ type: "success", text: "已上傳到雲端空間" });
+      } else {
+        const response = await fetch(JSONBIN_BASE_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": key,
+            "X-Bin-Name": "peipeikan-trade-log",
+          },
+          body: JSON.stringify(tradeLog),
+        });
+        if (!response.ok) {
+          throw new Error(
+            response.status === 401 || response.status === 403
+              ? "建立雲端空間失敗，請確認 Master Key 是否正確"
+              : `建立雲端空間失敗（HTTP ${response.status}）`,
+          );
+        }
+        const payload = (await response.json()) as { metadata?: { id?: string } };
+        const newBinId = payload.metadata?.id;
+        if (!newBinId) throw new Error("沒有取得 Bin ID，請稍後再試");
+        setSyncBinId(newBinId);
+        setSyncMessage({
+          type: "success",
+          text: `已建立雲端空間並上傳，Bin ID：${newBinId}`,
+        });
+      }
+    } catch (error) {
+      setSyncMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "上傳失敗，請稍後再試",
+      });
+    } finally {
+      setSyncStatus("idle");
+    }
+  };
+
+  const downloadTradeLog = async () => {
+    const key = syncKey.trim();
+    const binId = syncBinId.trim();
+    if (!key || !binId) {
+      setSyncMessage({ type: "error", text: "請先填寫 Master Key 與 Bin ID" });
+      return;
+    }
+    if (
+      tradeLog.length > 0 &&
+      !window.confirm("下載會覆蓋這台裝置目前的交易紀錄，確定要繼續嗎？")
+    ) {
+      return;
+    }
+
+    setSyncStatus("downloading");
+    setSyncMessage(null);
+    try {
+      const response = await fetch(`${JSONBIN_BASE_URL}/${binId}/latest`, {
+        headers: { "X-Master-Key": key },
+      });
+      if (!response.ok) {
+        throw new Error(
+          response.status === 401 || response.status === 403
+            ? "下載失敗，請確認 Master Key 是否正確"
+            : response.status === 404
+              ? "下載失敗，找不到這個 Bin ID"
+              : `下載失敗（HTTP ${response.status}）`,
+        );
+      }
+      const payload = (await response.json()) as { record?: unknown };
+      if (!isValidTradeRecordArray(payload.record)) {
+        throw new Error("雲端資料格式不正確");
+      }
+      setTradeLog(payload.record);
+      setSyncMessage({ type: "success", text: "已從雲端下載並覆蓋本機紀錄" });
+    } catch (error) {
+      setSyncMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "下載失敗，請稍後再試",
+      });
+    } finally {
+      setSyncStatus("idle");
+    }
   };
 
   const updateDraftCode = (value: string) => {
@@ -1574,6 +1727,76 @@ export default function Home() {
         ) : (
           <p className="trade-log-empty">還沒有交易紀錄，新增第一筆看看目前報酬率。</p>
         )}
+
+        <div className="sync-panel">
+          <div className="sync-panel-heading">
+            <h3>雲端同步（選用）</h3>
+            <p>
+              1. 到{" "}
+              <a href="https://jsonbin.io" target="_blank" rel="noreferrer">
+                jsonbin.io
+              </a>{" "}
+              免費註冊，進入 API Keys 頁面複製 Master Key，貼在下面。
+              <br />
+              2. 按「上傳」會自動建立雲端空間並產生 Bin ID。
+              <br />
+              3. 把 Master Key 和 Bin ID 傳給對方，兩邊填入相同的資訊就能互相上傳、下載。
+            </p>
+            <p className="sync-warning">
+              注意：這組 Master Key 能存取你 jsonbin.io 帳號底下所有的雲端空間，不是只有這筆交易紀錄，請不要分享給不信任的人；建議到 jsonbin.io 另外建立僅限這個
+              Bin 的 Access Key 取代 Master Key。Key 與 Bin ID 會存在這台裝置的瀏覽器裡。
+            </p>
+          </div>
+          <div className="sync-fields">
+            <label>
+              <span>Master Key</span>
+              <input
+                type="password"
+                value={syncKey}
+                onChange={(event) => setSyncKey(event.target.value)}
+                placeholder="貼上你的 jsonbin.io Master Key"
+                aria-label="雲端同步 Master Key"
+              />
+            </label>
+            <label>
+              <span>Bin ID</span>
+              <input
+                value={syncBinId}
+                onChange={(event) => setSyncBinId(event.target.value)}
+                placeholder="上傳後自動產生，或貼上對方給你的 Bin ID"
+                aria-label="雲端同步 Bin ID"
+              />
+            </label>
+          </div>
+          <div className="sync-actions">
+            <button
+              type="button"
+              className="submit-asset-button"
+              onClick={() => void uploadTradeLog()}
+              disabled={syncStatus !== "idle"}
+            >
+              {syncStatus === "uploading" ? "上傳中…" : "上傳"}
+            </button>
+            <button
+              type="button"
+              className="submit-asset-button sync-download-button"
+              onClick={() => void downloadTradeLog()}
+              disabled={syncStatus !== "idle"}
+            >
+              {syncStatus === "downloading" ? "下載中…" : "下載"}
+            </button>
+          </div>
+          {syncMessage && (
+            <p
+              className={
+                syncMessage.type === "error" ? "asset-error" : "sync-message-success"
+              }
+              role={syncMessage.type === "error" ? "alert" : "status"}
+            >
+              {syncMessage.text}
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="dividend-section" aria-labelledby="dividend-history-title">
