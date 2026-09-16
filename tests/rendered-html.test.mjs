@@ -265,6 +265,79 @@ test("cloud sync panel explains the jsonbin.io flow and warns about the Master K
   assert.match(html, />下載</);
 });
 
+test("ex-dividend dates are matched back to the right payment", async () => {
+  const { attachExDates } = await import(
+    new URL("../scripts/ex-dividend-matching.mjs", import.meta.url).href
+  );
+
+  // 取自官方除權息日曆與配息表的真實資料。
+  const exIndex = new Map([
+    [
+      "00919",
+      [
+        { exDate: "2025/09/16", amount: 0.54 },
+        { exDate: "2025/12/16", amount: 0.54 },
+        { exDate: "2026/03/17", amount: 0.78 },
+        { exDate: "2026/06/16", amount: 1 },
+        { exDate: "2026/09/16", amount: 1.1 },
+      ],
+    ],
+    [
+      // 月配，連續三次都配 0.38：最容易配錯的情況。
+      "00929",
+      [
+        { exDate: "2026/06/17", amount: 0.26 },
+        { exDate: "2026/07/21", amount: 0.38 },
+        { exDate: "2026/08/19", amount: 0.38 },
+      ],
+    ],
+  ]);
+
+  assert.deepEqual(
+    attachExDates(
+      "00919",
+      [
+        { paymentDate: "2026/10/15", amount: 1.1 },
+        { paymentDate: "2026/07/13", amount: 1 },
+        { paymentDate: "2026/04/14", amount: 0.78 },
+        { paymentDate: "2026/01/13", amount: 0.54 },
+      ],
+      exIndex,
+    ),
+    [
+      { paymentDate: "2026/10/15", amount: 1.1, exDate: "2026/09/16" },
+      { paymentDate: "2026/07/13", amount: 1, exDate: "2026/06/16" },
+      { paymentDate: "2026/04/14", amount: 0.78, exDate: "2026/03/17" },
+      // 金額同樣是 0.54 的有兩次除息，要挑發放日之前最近的那一次。
+      { paymentDate: "2026/01/13", amount: 0.54, exDate: "2025/12/16" },
+    ],
+  );
+
+  assert.deepEqual(
+    attachExDates(
+      "00929",
+      [
+        { paymentDate: "2026/10/16", amount: 0.38 },
+        { paymentDate: "2026/09/14", amount: 0.38 },
+        { paymentDate: "2026/08/14", amount: 0.38 },
+        { paymentDate: "2026/07/13", amount: 0.26 },
+      ],
+      exIndex,
+    ),
+    [
+      // 10/16 這筆的除息日還沒公告，不能拿 8/19 硬湊（那是 9/14 的）。
+      { paymentDate: "2026/10/16", amount: 0.38 },
+      { paymentDate: "2026/09/14", amount: 0.38, exDate: "2026/08/19" },
+      { paymentDate: "2026/08/14", amount: 0.38, exDate: "2026/07/21" },
+      { paymentDate: "2026/07/13", amount: 0.26, exDate: "2026/06/17" },
+    ],
+  );
+
+  // 上櫃標的不在這份日曆裡，要原封不動回傳，讓前端退回只看發放日。
+  const otc = [{ paymentDate: "2026/07/13", amount: 0.262 }];
+  assert.deepEqual(attachExDates("00687B", otc, exIndex), otc);
+});
+
 test("removes all starter-only preview code", async () => {
   const [page, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

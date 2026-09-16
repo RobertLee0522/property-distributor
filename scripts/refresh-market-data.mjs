@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { attachExDates } from "./ex-dividend-matching.mjs";
 
 const outputPath = path.resolve(
   process.env.MARKET_DATA_OUTPUT || "public/market-data.json",
@@ -106,6 +107,66 @@ function rocToSlashDate(rocDate) {
   const [, rocYear, month, day] = match;
   const year = Number(rocYear) + 1911;
   return `${year}/${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+}
+
+const ROC_DAY_LABEL = /^(\d{2,3})年(\d{1,2})月(\d{1,2})日$/;
+
+function rocLabelToSlashDate(label) {
+  const match = ROC_DAY_LABEL.exec(String(label ?? "").trim());
+  if (!match) return undefined;
+  const [, rocYear, month, day] = match;
+  return `${Number(rocYear) + 1911}/${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+}
+
+function toCompactDate(date) {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}${month}${day}`;
+}
+
+// 配息表只給「發放日」，但能不能領到這次配息是看「除息交易日」。
+// 官方除權除息計算結果表一次只吃得下大約一年，所以分兩段各約十二個月抓，
+// 才蓋得到半年配標的最舊的那筆配息。
+async function fetchExDividendIndex() {
+  const boundaries = [0, 12, 24].map((monthsAgo) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - monthsAgo);
+    return date;
+  });
+  const ranges = [
+    [boundaries[1], boundaries[0]],
+    [boundaries[2], boundaries[1]],
+  ];
+
+  const index = new Map();
+  for (const [start, end] of ranges) {
+    const url = new URL("https://www.twse.com.tw/rwd/zh/exRight/TWT49U");
+    url.searchParams.set("startDate", toCompactDate(start));
+    url.searchParams.set("endDate", toCompactDate(end));
+    url.searchParams.set("response", "json");
+
+    const response = await fetch(url, {
+      headers: {
+        accept: "application/json,*/*",
+        "user-agent": "Mozilla/5.0 ETF-allocator-dividend-refresh",
+      },
+    });
+    if (!response.ok) throw new Error(`除權息日曆 HTTP ${response.status}`);
+    const payload = JSON.parse(await response.text());
+    if (payload.stat !== "OK") throw new Error(`除權息日曆：${payload.stat}`);
+
+    for (const row of payload.data ?? []) {
+      const exDate = rocLabelToSlashDate(row[0]);
+      const code = String(row[1] ?? "").trim();
+      const amount = toNumber(row[5]);
+      if (!exDate || !code || amount === undefined) continue;
+      if (!index.has(code)) index.set(code, []);
+      index.get(code).push({ exDate, amount });
+    }
+  }
+
+  if (index.size === 0) throw new Error("除權息日曆沒有資料");
+  return index;
 }
 
 function toCandleRows(rows) {
@@ -246,11 +307,19 @@ async function fetchCandles(target) {
     : fetchTseCandles(target.code);
 }
 
-const [quoteResults, dividendResults, candleResults] = await Promise.all([
-  Promise.allSettled(targets.map(fetchQuote)),
-  Promise.allSettled(targets.map(fetchDividends)),
-  Promise.allSettled(targets.map(fetchCandles)),
-]);
+const [quoteResults, dividendResults, candleResults, exDividendResult] =
+  await Promise.all([
+    Promise.allSettled(targets.map(fetchQuote)),
+    Promise.allSettled(targets.map(fetchDividends)),
+    Promise.allSettled(targets.map(fetchCandles)),
+    fetchExDividendIndex().catch((error) => error),
+  ]);
+
+if (!(exDividendResult instanceof Map)) {
+  console.warn(`沒抓到除息日，改用發放日估算：${exDividendResult.message}`);
+}
+const exDividendIndex =
+  exDividendResult instanceof Map ? exDividendResult : new Map();
 
 const quotes = quoteResults.map((result, index) => {
   const fallback = existing.quotes.find(
@@ -266,10 +335,13 @@ const quotes = quoteResults.map((result, index) => {
   }
 
   const dividendResult = dividendResults[index];
-  const dividends =
+  const dividends = attachExDates(
+    targets[index].code,
     dividendResult.status === "fulfilled"
       ? dividendResult.value
-      : (fallback?.dividends ?? []);
+      : (fallback?.dividends ?? []),
+    exDividendIndex,
+  );
   if (dividendResult.status === "rejected") {
     console.warn(
       `使用 ${targets[index].code} 的備援配息：${dividendResult.reason.message}`,
