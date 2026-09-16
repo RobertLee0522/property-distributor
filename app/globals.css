@@ -244,6 +244,7 @@ select:focus-visible {
 }
 
 .planner-card,
+.trade-log-card,
 .dividend-section,
 .assumptions-card {
   padding: 36px;
@@ -262,6 +263,7 @@ select:focus-visible {
 
 .section-heading h2,
 .target-section h2,
+.trade-log-card h2,
 .dividend-section h2,
 .assumptions-card h2 {
   margin: 0;
@@ -682,6 +684,110 @@ select:focus-visible {
 
 .mobile-label {
   display: none;
+}
+
+.trade-log-card > .section-heading > div > p {
+  max-width: 560px;
+  margin: 8px 0 0;
+  color: #6e776f;
+  font-size: 13px;
+}
+
+.trade-log-form {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 0.6fr 0.6fr 0.9fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 24px;
+}
+
+.trade-log-form > label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.trade-log-form label > span {
+  color: #7f877f;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.trade-log-form input,
+.trade-log-form select {
+  width: 100%;
+  height: 39px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid #d7d9d1;
+  border-radius: 9px;
+  outline: 0;
+  background: #fff;
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.trade-log-cost-input .currency-input {
+  height: 39px;
+  margin-top: 0;
+  padding: 0 10px;
+  border: 1px solid #d7d9d1;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.trade-log-cost-input .currency-input input {
+  height: auto;
+  padding: 0;
+  border: 0;
+}
+
+.trade-log-list {
+  margin-top: 26px;
+}
+
+.trade-log-header,
+.trade-log-row {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr 0.95fr 0.9fr 0.9fr 0.8fr;
+  column-gap: 16px;
+  align-items: center;
+}
+
+.trade-log-header {
+  padding: 0 14px 11px;
+  color: #90968f;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.trade-log-header span:not(:first-child) {
+  text-align: right;
+}
+
+.trade-log-row {
+  min-height: 76px;
+  padding: 14px;
+  border-top: 1px solid #e4e5de;
+}
+
+.trade-log-row .row-metric strong.up {
+  color: #c45151;
+}
+
+.trade-log-row .row-metric strong.down {
+  color: #4b8b67;
+}
+
+.trade-log-empty {
+  margin: 24px 0 0;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  color: #8b928b;
+  font-size: 12px;
+  text-align: center;
 }
 
 .portfolio-actions {
@@ -1479,7 +1585,8 @@ footer p {
     padding: 55px 35px;
   }
 
-  .custom-asset-form {
+  .custom-asset-form,
+  .trade-log-form {
     grid-template-columns: repeat(3, 1fr);
   }
 
@@ -1526,6 +1633,7 @@ footer p {
   }
 
   .planner-card,
+  .trade-log-card,
   .dividend-section,
   .assumptions-card {
     padding: 24px 18px;
@@ -1575,11 +1683,13 @@ footer p {
     grid-column: auto;
   }
 
-  .allocation-header {
+  .allocation-header,
+  .trade-log-header {
     display: none;
   }
 
-  .allocation-row {
+  .allocation-row,
+  .trade-log-row {
     grid-template-columns: 1fr 1fr;
     row-gap: 18px;
     min-height: 0;
