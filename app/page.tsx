@@ -25,6 +25,7 @@ type Asset = {
   yieldMode?: "history" | "manual";
   dividends?: DividendRecord[];
   candles?: Candle[];
+  manualShares?: number;
   accent: string;
 };
 
@@ -691,9 +692,20 @@ export default function Home() {
   }, [budget, linkDirection, monthlyTarget, portfolioAverageYield, portfolioReady]);
 
   const calculations = useMemo(() => {
-    const equalShare = budget / assets.length;
+    // 自行輸入張數／股數的標的優先扣掉預算；其餘標的再平均分配剩下的預算。
+    const manualInvestedTotal = assets.reduce(
+      (sum, asset) =>
+        asset.manualShares != null ? sum + asset.manualShares * asset.price : sum,
+      0,
+    );
+    const autoAssetCount = assets.filter((asset) => asset.manualShares == null).length;
+    const remainingBudget = Math.max(budget - manualInvestedTotal, 0);
+    const equalShare = autoAssetCount > 0 ? remainingBudget / autoAssetCount : 0;
+
     return assets.map((asset) => {
-      const shares = Math.floor(equalShare / (asset.price * unit)) * unit;
+      const shares =
+        asset.manualShares ??
+        Math.floor(equalShare / (asset.price * unit)) * unit;
       const invested = shares * asset.price;
       const annualDividendPerShare = getAnnualDividendPerShare(asset);
       const annualDividend = shares * annualDividendPerShare;
@@ -796,6 +808,26 @@ export default function Home() {
         ? { ...asset, yieldRate: nextValue, yieldMode: "manual" as const }
         : { ...asset, price: nextValue };
     });
+    syncForAssets(nextAssets);
+  };
+
+  const updateAssetShares = (
+    code: string,
+    currentShares: number,
+    field: "lots" | "oddShares",
+    value: string,
+  ) => {
+    const parsedValue = Math.max(0, Math.floor(parseNumericInput(value)));
+    const currentLots = Math.floor(currentShares / 1000);
+    const currentOddShares = currentShares % 1000;
+    const nextShares =
+      field === "lots"
+        ? parsedValue * 1000 + currentOddShares
+        : currentLots * 1000 + parsedValue;
+
+    const nextAssets = assets.map((asset) =>
+      asset.code === code ? { ...asset, manualShares: nextShares } : asset,
+    );
     syncForAssets(nextAssets);
   };
 
@@ -1047,12 +1079,14 @@ export default function Home() {
           <div className="allocation-header" aria-hidden="true">
             <span>投資標的</span>
             <span>即時參考價</span>
-            <span>建議股數</span>
+            <span>股數（張／股）</span>
             <span>投入金額</span>
             <span>平均月息</span>
           </div>
           {calculations.map((asset) => {
             const priceChange = asset.price - asset.previousPrice;
+            const lots = Math.floor(asset.shares / 1000);
+            const oddShares = asset.shares % 1000;
             return (
               <article className="allocation-row" key={asset.code}>
                 <div className="asset-name">
@@ -1091,9 +1125,40 @@ export default function Home() {
                   </small>
                   <CandlestickChart asset={asset} />
                 </label>
-                <div className="row-metric">
-                  <span className="mobile-label">建議股數</span>
-                  <strong>{number.format(asset.shares)} 股</strong>
+                <div className="row-metric shares-field">
+                  <span className="mobile-label">股數（張／股）</span>
+                  <div className="shares-inputs">
+                    <label>
+                      <input
+                        aria-label={`${asset.code} 張數`}
+                        inputMode="numeric"
+                        value={lots}
+                        onChange={(event) =>
+                          updateAssetShares(asset.code, asset.shares, "lots", event.target.value)
+                        }
+                      />
+                      <span>張</span>
+                    </label>
+                    <label>
+                      <input
+                        aria-label={`${asset.code} 股數`}
+                        inputMode="numeric"
+                        value={oddShares}
+                        onChange={(event) =>
+                          updateAssetShares(
+                            asset.code,
+                            asset.shares,
+                            "oddShares",
+                            event.target.value,
+                          )
+                        }
+                      />
+                      <span>股</span>
+                    </label>
+                  </div>
+                  <small>
+                    {asset.manualShares != null ? "自訂" : "依預算平均"}共 {number.format(asset.shares)} 股
+                  </small>
                 </div>
                 <div className="row-metric">
                   <span className="mobile-label">投入金額</span>
