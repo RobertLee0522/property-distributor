@@ -1592,7 +1592,7 @@ export default function Home() {
             <p className="step-label">紀錄</p>
             <h2 id="trade-log-title">你的交易紀錄</h2>
             <p>
-              記下實際買進的日期、張數與總成本，自動幫你算目前市值與報酬率。資料只存在你這個瀏覽器裡，不會上傳到任何地方。
+              記下實際買進的日期、張數與總成本，自動幫你算目前市值、未實現損益、已領股息與總報酬率。資料只存在你這個瀏覽器裡，不會上傳到任何地方。
             </p>
           </div>
         </div>
@@ -1672,6 +1672,8 @@ export default function Home() {
               <span>股數</span>
               <span>總成本</span>
               <span>目前市值</span>
+              <span>未實現損益</span>
+              <span>實現損益（已領股息）</span>
               <span>報酬率</span>
             </div>
             {tradeLog.map((record) => {
@@ -1680,9 +1682,23 @@ export default function Home() {
                 ASSET_CATALOG.find((item) => item.code === record.assetCode);
               const totalShares = record.lots * 1000 + record.oddShares;
               const currentValue = asset ? totalShares * asset.price : null;
+              const unrealizedPnl =
+                currentValue != null ? currentValue - record.totalCost : null;
+              const purchaseTime = Date.parse(record.date);
+              const realizedPnl = (asset?.dividends ?? []).reduce((sum, dividend) => {
+                const paidTime = Date.parse(dividend.paymentDate.replaceAll("/", "-"));
+                if (
+                  !Number.isFinite(paidTime) ||
+                  !Number.isFinite(purchaseTime) ||
+                  paidTime < purchaseTime
+                ) {
+                  return sum;
+                }
+                return sum + dividend.amount * totalShares;
+              }, 0);
               const returnPct =
-                currentValue != null && record.totalCost > 0
-                  ? ((currentValue - record.totalCost) / record.totalCost) * 100
+                unrealizedPnl != null && record.totalCost > 0
+                  ? ((unrealizedPnl + realizedPnl) / record.totalCost) * 100
                   : null;
 
               return (
@@ -1725,6 +1741,20 @@ export default function Home() {
                   <div className="row-metric">
                     <span className="mobile-label">目前市值</span>
                     <strong>{currentValue != null ? money.format(currentValue) : "—"}</strong>
+                  </div>
+                  <div className="row-metric">
+                    <span className="mobile-label">未實現損益</span>
+                    <strong className={unrealizedPnl != null && unrealizedPnl >= 0 ? "up" : "down"}>
+                      {unrealizedPnl != null
+                        ? `${unrealizedPnl >= 0 ? "+" : ""}${money.format(unrealizedPnl)}`
+                        : "—"}
+                    </strong>
+                  </div>
+                  <div className="row-metric">
+                    <span className="mobile-label">實現損益（已領股息）</span>
+                    <strong className={realizedPnl > 0 ? "up" : undefined}>
+                      {`+${money.format(realizedPnl)}`}
+                    </strong>
                   </div>
                   <div className="row-metric">
                     <span className="mobile-label">報酬率</span>
