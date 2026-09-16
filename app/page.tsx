@@ -656,17 +656,25 @@ export default function Home() {
         current.map((asset) => {
           const quote = payload.quotes?.find((item) => item.code === asset.code);
           if (!quote || !Number.isFinite(quote.price)) return asset;
+          const hasFreshDividends = (quote.dividends?.length ?? 0) > 0;
+          // 修復舊資料：如果這檔標的先前被鎖成「自訂」但其實從來沒有配息
+          // 紀錄（典型狀況是透過下方「輸入其他股票」表單打代號加進來，
+          // 而不是點常用 ETF 按鈕），現在既然抓到真的配息資料了，就把它
+          // 改回「依歷史配息計算」，不要繼續卡在自訂估算。已經有配息紀錄
+          // 又被手動改成自訂的標的（使用者真的想覆蓋的情況）不受影響。
+          const shouldUnlockManualEstimate =
+            asset.yieldMode === "manual" &&
+            (asset.dividends?.length ?? 0) === 0 &&
+            hasFreshDividends;
           return {
             ...asset,
             price: quote.price,
             previousPrice: quote.previousPrice ?? asset.previousPrice,
-            dividends: quote.dividends?.length
-              ? quote.dividends
-              : asset.dividends,
+            dividends: hasFreshDividends ? quote.dividends : asset.dividends,
             candles: quote.candles?.length ? quote.candles : asset.candles,
-            yieldMode:
-              asset.yieldMode ??
-              (quote.dividends?.length ? "history" : undefined),
+            yieldMode: shouldUnlockManualEstimate
+              ? "history"
+              : (asset.yieldMode ?? (hasFreshDividends ? "history" : undefined)),
           };
         }),
       );
@@ -1144,18 +1152,24 @@ export default function Home() {
       return;
     }
 
-    addAsset({
-      code,
-      market: assetDraft.market,
-      name,
-      price,
-      previousPrice: price,
-      yieldRate,
-      yieldMode: "manual",
-      dividends: [],
-      candles: [],
-      accent: ACCENT_COLORS[assets.length % ACCENT_COLORS.length],
-    });
+    // 如果輸入的代號其實是常用清單裡就有的標的（例如直接打「00919」而不是
+    // 點上面的按鈕），改用目錄裡的資料加入，才能沿用真正的配息歷史與
+    // K 線，不然會被鎖死成「自訂估算」，往後配息資料更新也救不回來。
+    const catalogAsset = ASSET_CATALOG.find((asset) => asset.code === code);
+    addAsset(
+      catalogAsset ?? {
+        code,
+        market: assetDraft.market,
+        name,
+        price,
+        previousPrice: price,
+        yieldRate,
+        yieldMode: "manual",
+        dividends: [],
+        candles: [],
+        accent: ACCENT_COLORS[assets.length % ACCENT_COLORS.length],
+      },
+    );
     if (!assets.some((asset) => asset.code === code)) {
       setAssetDraft(EMPTY_DRAFT);
     }
