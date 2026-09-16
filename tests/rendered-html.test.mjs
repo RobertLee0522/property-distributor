@@ -65,6 +65,31 @@ test("server-renders the ETF allocation product", async () => {
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
+test("each asset row offers manual 張／股 inputs that reverse-derive 投入金額", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  assert.match(html, /股數（張／股）/);
+
+  for (const code of ["0056", "00713", "00878", "00687B"]) {
+    assert.match(
+      html,
+      new RegExp(`aria-label="${code} 張數" inputMode="numeric" value="\\d+"`),
+      `${code} 應該有可輸入的「張數」欄位`,
+    );
+    assert.match(
+      html,
+      new RegExp(`aria-label="${code} 股數" inputMode="numeric" value="\\d+"`),
+      `${code} 應該有可輸入的「股數」欄位`,
+    );
+  }
+
+  // 尚未手動輸入前，顯示「依預算平均」；手動輸入張數／股數後的重新計算邏輯
+  // （反推投入金額、剩餘預算再分配給其他標的）屬於瀏覽器端 state，已用
+  // Playwright 手動驗證過，這裡只鎖住 SSR 初始渲染的標記與結構。
+  assert.match(html, /依預算平均<!-- -->共 <!-- -->\d+<!-- --> 股/);
+});
+
 function parseMoney(text) {
   const parsed = Number(text.replace(/[^0-9.-]/g, ""));
   assert.ok(Number.isFinite(parsed), `無法解析金額：${text}`);
