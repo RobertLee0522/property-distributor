@@ -790,6 +790,94 @@ select:focus-visible {
   text-align: center;
 }
 
+.sync-panel {
+  margin-top: 30px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #f7f6f1;
+}
+
+.sync-panel-heading h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.sync-panel-heading > p {
+  margin: 8px 0 0;
+  color: #6e776f;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.sync-panel-heading a {
+  color: #3d5d2a;
+  font-weight: 700;
+}
+
+.sync-warning {
+  color: #a64d47;
+  font-size: 10px;
+}
+
+.sync-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.sync-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sync-fields label > span {
+  color: #7f877f;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.sync-fields input {
+  height: 39px;
+  padding: 0 10px;
+  border: 1px solid #d7d9d1;
+  border-radius: 9px;
+  outline: 0;
+  background: #fff;
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.sync-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.sync-actions .submit-asset-button {
+  flex: 1;
+}
+
+button.sync-download-button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.sync-message-success {
+  margin: 10px 0 0;
+  color: #3d5d2a;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.sync-panel .asset-error {
+  margin-top: 10px;
+}
+
 .portfolio-actions {
   display: flex;
   align-items: center;
@@ -1698,6 +1786,16 @@ footer p {
 
   .asset-name {
     grid-column: 1 / -1;
+  }
+
+  .sync-panel {
+    padding: 16px;
+  }
+
+  .sync-fields,
+  .sync-actions {
+    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .editable-value,
