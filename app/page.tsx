@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type DividendRecord = {
   paymentDate: string;
+  exDate?: string;
   amount: number;
 };
 
@@ -378,6 +379,34 @@ function isValidTradeRecordArray(value: unknown): value is TradeRecord[] {
 
 function getRecentDividends(asset: Asset) {
   return (asset.dividends ?? []).slice(0, 4);
+}
+
+function toIsoDay(date: string) {
+  return date.replaceAll("/", "-");
+}
+
+function getTodayIsoDay() {
+  const now = new Date();
+  const month = `${now.getMonth() + 1}`.padStart(2, "0");
+  const day = `${now.getDate()}`.padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+// 一筆配息要算進「已領股息」得同時成立兩件事：錢真的發了（發放日已到），
+// 而且這筆錢本來就是你的——台股是看除息交易日，必須在除息日之前就買進並持有，
+// 除息當天（含）之後才買的人領不到。發放日通常比除息日晚三到四週，所以不能
+// 用發放日當判斷依據。抓不到除息日時（例如上櫃標的）才退回只看發放日。
+function getReceivedDividendPerShare(
+  dividends: DividendRecord[],
+  purchaseDate: string,
+  todayIsoDay: string,
+) {
+  return dividends.reduce((sum, dividend) => {
+    const paidOn = toIsoDay(dividend.paymentDate);
+    if (paidOn > todayIsoDay) return sum;
+    const entitlementCutoff = dividend.exDate ? toIsoDay(dividend.exDate) : paidOn;
+    return purchaseDate < entitlementCutoff ? sum + dividend.amount : sum;
+  }, 0);
 }
 
 function getRecentCandles(asset: Asset) {
@@ -1014,6 +1043,8 @@ export default function Home() {
   const removeTradeRecord = (id: string) => {
     setTradeLog((current) => current.filter((record) => record.id !== id));
   };
+
+  const todayIsoDay = getTodayIsoDay();
 
   const uploadTradeLog = async () => {
     const key = syncKey.trim();
@@ -1684,18 +1715,12 @@ export default function Home() {
               const currentValue = asset ? totalShares * asset.price : null;
               const unrealizedPnl =
                 currentValue != null ? currentValue - record.totalCost : null;
-              const purchaseTime = Date.parse(record.date);
-              const realizedPnl = (asset?.dividends ?? []).reduce((sum, dividend) => {
-                const paidTime = Date.parse(dividend.paymentDate.replaceAll("/", "-"));
-                if (
-                  !Number.isFinite(paidTime) ||
-                  !Number.isFinite(purchaseTime) ||
-                  paidTime < purchaseTime
-                ) {
-                  return sum;
-                }
-                return sum + dividend.amount * totalShares;
-              }, 0);
+              const realizedPnl =
+                getReceivedDividendPerShare(
+                  asset?.dividends ?? [],
+                  record.date,
+                  todayIsoDay,
+                ) * totalShares;
               const returnPct =
                 unrealizedPnl != null && record.totalCost > 0
                   ? ((unrealizedPnl + realizedPnl) / record.totalCost) * 100
