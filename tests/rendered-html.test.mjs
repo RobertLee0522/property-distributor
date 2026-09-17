@@ -265,6 +265,27 @@ test("cloud sync panel explains the jsonbin.io flow and warns about the Master K
   assert.match(html, />下載</);
 });
 
+test("cash flow calendar offers budget vs actual-holdings tabs", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  assert.match(html, /role="tablist"/);
+  assert.match(html, />依預算配置</);
+  assert.match(html, />依實際持股</);
+
+  // 預設停在「依預算配置」，這樣沒登記交易紀錄的人打開就看得到東西。
+  assert.match(
+    html,
+    /id="cashflow-tab-budget"[^>]*aria-selected="true"/,
+    "預設分頁應該是「依預算配置」",
+  );
+  assert.match(html, /id="cashflow-tab-actual"[^>]*aria-selected="false"/);
+
+  // 只渲染目前選中的分頁，兩個分頁的月曆不該同時出現。
+  const monthGrids = [...html.matchAll(/<div class="cashflow-month-grid"/g)];
+  assert.equal(monthGrids.length, 1, "同時只該有一組月曆");
+});
+
 test("ex-dividend dates are matched back to the right payment", async () => {
   const { attachExDates } = await import(
     new URL("../scripts/ex-dividend-matching.mjs", import.meta.url).href
