@@ -469,6 +469,36 @@ function getForecastPaymentMonths(asset: Asset) {
   return months.slice(0, frequency);
 }
 
+// 把一組持股攤成 12 個月的預估入帳。依預算配置和依交易紀錄的實際持股都走這裡，
+// 差別只在傳進來的股數是試算出來的還是真的買的。
+function getMonthlyCashflow(holdings: (Asset & { shares: number; annualDividend: number })[]) {
+  return MONTH_LABELS.map((label, monthIndex) => {
+    const contributors = holdings
+      .map((asset) => {
+        const records = getRecentDividends(asset);
+        const isManualEstimate = asset.yieldMode === "manual" || records.length === 0;
+        const paymentMonths = getForecastPaymentMonths(asset);
+        if (!isManualEstimate && !paymentMonths.includes(monthIndex)) {
+          return null;
+        }
+        return {
+          code: asset.code,
+          amount: isManualEstimate
+            ? asset.annualDividend / 12
+            : asset.shares * getAverageDividendPerPayment(asset),
+          accent: asset.accent,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    return {
+      label,
+      amount: contributors.reduce((sum, item) => sum + item.amount, 0),
+      contributors,
+    };
+  });
+}
+
 function getEstimatedYield(asset: Asset) {
   if (asset.price <= 0) return 0;
   return (getAnnualDividendPerShare(asset) / asset.price) * 100;
@@ -661,6 +691,7 @@ export default function Home() {
   const [tradeLog, setTradeLog] = useState<TradeRecord[]>([]);
   const [tradeLogReady, setTradeLogReady] = useState(false);
   const [tradeDraft, setTradeDraft] = useState<TradeDraft>(EMPTY_TRADE_DRAFT);
+  const [cashflowView, setCashflowView] = useState<"budget" | "actual">("budget");
   const [tradeError, setTradeError] = useState("");
   const [syncKey, setSyncKey] = useState("");
   const [syncBinId, setSyncBinId] = useState("");
@@ -877,34 +908,36 @@ export default function Home() {
   }, [assets, budget, unit]);
 
   const monthlyForecast = useMemo(
-    () =>
-      MONTH_LABELS.map((label, monthIndex) => {
-        const contributors = calculations
-          .map((asset) => {
-            const records = getRecentDividends(asset);
-            const isManualEstimate =
-              asset.yieldMode === "manual" || records.length === 0;
-            const paymentMonths = getForecastPaymentMonths(asset);
-            if (!isManualEstimate && !paymentMonths.includes(monthIndex)) {
-              return null;
-            }
-            return {
-              code: asset.code,
-              amount: isManualEstimate
-                ? asset.annualDividend / 12
-                : asset.shares * getAverageDividendPerPayment(asset),
-              accent: asset.accent,
-            };
-          })
-          .filter((item): item is NonNullable<typeof item> => item !== null);
-
-        return {
-          label,
-          amount: contributors.reduce((sum, item) => sum + item.amount, 0),
-          contributors,
-        };
-      }),
+    () => getMonthlyCashflow(calculations),
     [calculations],
+  );
+
+  // 交易紀錄裡實際買進的股數，同一檔分多次買就加總起來。
+  const tradeHoldings = useMemo(() => {
+    const sharesByCode = new Map<string, number>();
+    for (const record of tradeLog) {
+      const shares = record.lots * 1000 + record.oddShares;
+      if (shares <= 0) continue;
+      sharesByCode.set(
+        record.assetCode,
+        (sharesByCode.get(record.assetCode) ?? 0) + shares,
+      );
+    }
+
+    return [...sharesByCode].flatMap(([code, shares]) => {
+      const asset =
+        assets.find((item) => item.code === code) ??
+        ASSET_CATALOG.find((item) => item.code === code);
+      if (!asset) return [];
+      return [
+        { ...asset, shares, annualDividend: shares * getAnnualDividendPerShare(asset) },
+      ];
+    });
+  }, [tradeLog, assets]);
+
+  const actualMonthlyCashflow = useMemo(
+    () => getMonthlyCashflow(tradeHoldings),
+    [tradeHoldings],
   );
 
   const totals = useMemo(() => {
@@ -927,6 +960,32 @@ export default function Home() {
       gap: Math.max(requiredCapital - budget, 0),
     };
   }, [budget, calculations, monthlyTarget, portfolioAverageYield]);
+
+  const activeCashflow = useMemo(() => {
+    if (cashflowView === "actual") {
+      const annualTotal = tradeHoldings.reduce(
+        (sum, item) => sum + item.annualDividend,
+        0,
+      );
+      return {
+        months: actualMonthlyCashflow,
+        annualTotal,
+        monthlyAverage: annualTotal / 12,
+      };
+    }
+    return {
+      months: monthlyForecast,
+      annualTotal: totals.annualDividend,
+      monthlyAverage: totals.monthlyDividend,
+    };
+  }, [
+    actualMonthlyCashflow,
+    cashflowView,
+    monthlyForecast,
+    totals.annualDividend,
+    totals.monthlyDividend,
+    tradeHoldings,
+  ]);
 
   const syncForAssets = (nextAssets: Asset[]) => {
     const nextYield = getAverageYield(nextAssets);
@@ -1962,37 +2021,82 @@ export default function Home() {
         </div>
 
         <div className="cashflow-calendar">
-          <div className="cashflow-calendar-heading">
-            <div>
-              <span>12 個月預估入帳分布</span>
-              <strong>各月金額是當月可能配息標的的加總</strong>
-            </div>
-            <div>
-              <span>全年預估</span>
-              <strong>{money.format(totals.annualDividend)}</strong>
-              <small>平均每月 {money.format(totals.monthlyDividend)}</small>
-            </div>
+          <div className="cashflow-tabs" role="tablist" aria-label="入帳分布依據">
+            <button
+              type="button"
+              role="tab"
+              id="cashflow-tab-budget"
+              aria-selected={cashflowView === "budget"}
+              aria-controls="cashflow-panel"
+              className={cashflowView === "budget" ? "is-active" : ""}
+              onClick={() => setCashflowView("budget")}
+            >
+              依預算配置
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="cashflow-tab-actual"
+              aria-selected={cashflowView === "actual"}
+              aria-controls="cashflow-panel"
+              className={cashflowView === "actual" ? "is-active" : ""}
+              onClick={() => setCashflowView("actual")}
+            >
+              依實際持股
+            </button>
           </div>
-          <div className="cashflow-month-grid">
-            {monthlyForecast.map((month) => (
-              <article className={month.amount > 0 ? "has-cashflow" : ""} key={month.label}>
-                <span>{month.label}</span>
-                <strong>{money.format(month.amount)}</strong>
-                <div aria-label={`${month.label}配息標的`}>
-                  {month.contributors.length > 0
-                    ? month.contributors.map((item) => (
-                        <small key={item.code} style={{ borderColor: item.accent }}>
-                          {item.code}
-                        </small>
-                      ))
-                    : <small>—</small>}
-                </div>
-              </article>
-            ))}
+          <div
+            id="cashflow-panel"
+            role="tabpanel"
+            aria-labelledby={`cashflow-tab-${cashflowView}`}
+          >
+            <div className="cashflow-calendar-heading">
+              <div>
+                <span>12 個月預估入帳分布</span>
+                <strong>
+                  {cashflowView === "budget"
+                    ? "各月金額是當月可能配息標的的加總"
+                    : "依你在「你的交易紀錄」裡登記的股數計算"}
+                </strong>
+              </div>
+              <div>
+                <span>全年預估</span>
+                <strong>{money.format(activeCashflow.annualTotal)}</strong>
+                <small>平均每月 {money.format(activeCashflow.monthlyAverage)}</small>
+              </div>
+            </div>
+            {cashflowView === "actual" && tradeHoldings.length === 0 ? (
+              <p className="cashflow-empty">
+                還沒有交易紀錄。到下方「你的交易紀錄」登記買進的張數與股數，這裡就會依實際持股算出每個月可以領多少。
+              </p>
+            ) : (
+              <div className="cashflow-month-grid">
+                {activeCashflow.months.map((month) => (
+                  <article
+                    className={month.amount > 0 ? "has-cashflow" : ""}
+                    key={month.label}
+                  >
+                    <span>{month.label}</span>
+                    <strong>{money.format(month.amount)}</strong>
+                    <div aria-label={`${month.label}配息標的`}>
+                      {month.contributors.length > 0
+                        ? month.contributors.map((item) => (
+                            <small key={item.code} style={{ borderColor: item.accent }}>
+                              {item.code}
+                            </small>
+                          ))
+                        : <small>—</small>}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            <p className="cashflow-formula-note">
+              {cashflowView === "budget"
+                ? "例如只保留 0056、00713、00878 三檔時，上方「平均每月現金流」就是三檔全年預估配息合計後除以 12，不是再把三檔月息除以 3。"
+                : "依歷史配息金額與發放月份推估，實際配息仍以各家公告為準；同一檔分多次買進會先加總股數再計算。"}
+            </p>
           </div>
-          <p className="cashflow-formula-note">
-            例如只保留 0056、00713、00878 三檔時，上方「平均每月現金流」就是三檔全年預估配息合計後除以 12，不是再把三檔月息除以 3。
-          </p>
         </div>
       </section>
 
