@@ -392,21 +392,30 @@ function getTodayIsoDay() {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-// 一筆配息要算進「已領股息」得同時成立兩件事：錢真的發了（發放日已到），
-// 而且這筆錢本來就是你的——台股是看除息交易日，必須在除息日之前就買進並持有，
-// 除息當天（含）之後才買的人領不到。發放日通常比除息日晚三到四週，所以不能
-// 用發放日當判斷依據。抓不到除息日時（例如上櫃標的）才退回只看發放日。
-function getReceivedDividendPerShare(
+// 配得到一次配息的條件是台股的除息交易日規則：必須在除息日之前就買進並持有，
+// 除息當天（含）之後才買的人領不到。發放日通常比除息日晚三到四週，所以不能拿
+// 發放日當判斷依據。抓不到除息日時（例如上櫃標的）才退回只看發放日。
+//
+// 配得到的再依發放日分成兩塊：發放日已到的是真的入袋了（已領），還沒到的是已經
+// 除息、錢還在路上（待發放）。這段空窗期股價已經扣掉配息、現金卻還沒進來，分開
+// 列出來才看得出中間的差額跑到哪去了。
+function getDividendPerShare(
   dividends: DividendRecord[],
   purchaseDate: string,
   todayIsoDay: string,
 ) {
-  return dividends.reduce((sum, dividend) => {
+  let received = 0;
+  let pending = 0;
+
+  for (const dividend of dividends) {
     const paidOn = toIsoDay(dividend.paymentDate);
-    if (paidOn > todayIsoDay) return sum;
     const entitlementCutoff = dividend.exDate ? toIsoDay(dividend.exDate) : paidOn;
-    return purchaseDate < entitlementCutoff ? sum + dividend.amount : sum;
-  }, 0);
+    if (purchaseDate >= entitlementCutoff) continue;
+    if (paidOn > todayIsoDay) pending += dividend.amount;
+    else received += dividend.amount;
+  }
+
+  return { received, pending };
 }
 
 function getRecentCandles(asset: Asset) {
@@ -1623,7 +1632,7 @@ export default function Home() {
             <p className="step-label">紀錄</p>
             <h2 id="trade-log-title">你的交易紀錄</h2>
             <p>
-              記下實際買進的日期、張數與總成本，自動幫你算目前市值、未實現損益、已領股息與總報酬率。資料只存在你這個瀏覽器裡，不會上傳到任何地方。
+              記下實際買進的日期、張數與總成本，自動幫你算目前市值、未實現損益、已領股息與總報酬率。已除息但還沒發放的配息會單獨列出來，並一起算進報酬率。資料只存在你這個瀏覽器裡，不會上傳到任何地方。
             </p>
           </div>
         </div>
@@ -1705,6 +1714,7 @@ export default function Home() {
               <span>目前市值</span>
               <span>未實現損益</span>
               <span>實現損益（已領股息）</span>
+              <span>已除息待發放</span>
               <span>報酬率</span>
             </div>
             {tradeLog.map((record) => {
@@ -1715,15 +1725,20 @@ export default function Home() {
               const currentValue = asset ? totalShares * asset.price : null;
               const unrealizedPnl =
                 currentValue != null ? currentValue - record.totalCost : null;
-              const realizedPnl =
-                getReceivedDividendPerShare(
-                  asset?.dividends ?? [],
-                  record.date,
-                  todayIsoDay,
-                ) * totalShares;
+              const dividendPerShare = getDividendPerShare(
+                asset?.dividends ?? [],
+                record.date,
+                todayIsoDay,
+              );
+              const realizedPnl = dividendPerShare.received * totalShares;
+              const pendingDividend = dividendPerShare.pending * totalShares;
+              // 除息當天股價就扣掉配息了，錢卻要三四週後才入帳。待發放的部分一起
+              // 算進報酬率，這段空窗期才不會憑空少一截。
               const returnPct =
                 unrealizedPnl != null && record.totalCost > 0
-                  ? ((unrealizedPnl + realizedPnl) / record.totalCost) * 100
+                  ? ((unrealizedPnl + realizedPnl + pendingDividend) /
+                      record.totalCost) *
+                    100
                   : null;
 
               return (
@@ -1779,6 +1794,12 @@ export default function Home() {
                     <span className="mobile-label">實現損益（已領股息）</span>
                     <strong className={realizedPnl > 0 ? "up" : undefined}>
                       {`+${money.format(realizedPnl)}`}
+                    </strong>
+                  </div>
+                  <div className="row-metric">
+                    <span className="mobile-label">已除息待發放</span>
+                    <strong className={pendingDividend > 0 ? "pending" : undefined}>
+                      {`+${money.format(pendingDividend)}`}
                     </strong>
                   </div>
                   <div className="row-metric">
