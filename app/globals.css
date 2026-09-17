@@ -750,8 +750,8 @@ select:focus-visible {
 .trade-log-header,
 .trade-log-row {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 0.9fr 1.1fr 0.75fr;
-  column-gap: 16px;
+  grid-template-columns: 1.5fr 0.72fr 0.62fr 0.75fr 0.75fr 0.8fr 0.95fr 0.85fr 0.62fr;
+  column-gap: 14px;
   align-items: center;
 }
 
@@ -778,6 +778,12 @@ select:focus-visible {
 
 .trade-log-row .row-metric strong.down {
   color: #4b8b67;
+}
+
+/* 已除息但還沒入帳的錢：用淡一點的紅色跟「已領」區隔，一眼看得出還沒到手。 */
+.trade-log-row .row-metric strong.pending {
+  color: #c45151;
+  opacity: 0.55;
 }
 
 .trade-log-empty {
